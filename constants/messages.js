@@ -51,13 +51,13 @@ export const BRAND_MESSAGE = {
 export const MODEL_MESSAGE = {
   CREATE_MODEL_SUCCESS: 'Create model successfullY'
 }
-export const CARS_MESSAGE = {
-  GET_CAR_SUCCESS: 'GetList car successfully',
-  CREATE_CAR_SUCCESS: 'Create car successfully',
-  UPDATE_CAR_SUCCESS: 'Update car successfully',
-  GET_CAR_SUCCESS: 'Get car successfully',
-  GET_CARS_SUCCESS: 'Get list cars successfully',
-  UPDATE_RATING_SUCCESS: 'Update rating successfully'
+export const CAMPAIGN_MESSAGE = {
+  GET_CAMPAIGN_SUCCESS: 'GetList campaign successfully',
+  CREATE_CAMPAIGN_SUCCESS: 'Create campaign successfully',
+  UPDATE_CAMPAIGN_SUCCESS: 'Update campaign successfully',
+  GET_CAMPAIGN_SUCCESS: 'Get campaign successfully',
+  GET_CAMPAIGN_SUCCESS: 'Get list campaign successfully',
+  UPDATE_CAMPAIGN_SUCCESS: 'Update rating successfully'
 }
 export const COUPON_MESSAGE = {
   DELETE_COUPON_SUCCESS: 'delete successfullY'

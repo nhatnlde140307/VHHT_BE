@@ -4,7 +4,9 @@ import { USER_MESSAGES } from '../constants/messages.js'
 import { HTTP_STATUS } from '../constants/httpStatus.js'
 import usersService from '../services/users.services.js'
 import User from '../models/users.model.js'
+import { ErrorWithStatus } from '../models/error.js'
 import { hashPassword } from '../utils/crypto.js'
+import { verifyToken } from '../utils/jwt.js'
 
 import pkg from 'lodash'
 const { capitalize } = pkg

@@ -7,7 +7,9 @@ import mongoose from 'mongoose'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import { config } from 'dotenv'
+//routes
 import usersRouter from './routes/users.routes.js';
+import campaignRoutes from './routes/campaign.routes.js';
 
 config()
 const app = express()
@@ -32,6 +34,7 @@ app.get('/', async (req, res) => {
 })
 
 app.use('/users', usersRouter)
+app.use('/campaigns', campaignRoutes)
 
 app.use(defaultErrorHandler)
 app.listen(port, () => {
