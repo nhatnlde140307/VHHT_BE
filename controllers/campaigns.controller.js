@@ -45,3 +45,37 @@ export const getCampaignById = async (req, res) => {
     res.status(404).json({ error: { message: err.message } });
   }
 };
+
+export const updateCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const result = await campaignServices.updateCampaign(campaignId, req.body);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: { message: err.message } });
+  }
+};
+
+export const registerCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const userId = req.decoded_authorization.user_id; 
+
+    const result = await campaignServices.registerCampaign({ campaignId, userId });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: { message: err.message } });
+  }
+};
+
+export const getCampaignVolunteers = async (req, res) => {
+  try {
+    const { id: campaignId } = req.params;
+    const { status } = req.query;
+
+    const result = await campaignServices.getCampaignVolunteers(campaignId, status);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: { message: err.message } });
+  }
+};

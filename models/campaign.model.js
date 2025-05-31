@@ -8,7 +8,7 @@ const phaseSchema = new Schema({
   start: { type: Date, required: true },
   end: { type: Date, required: true },
   description: { type: String }
-}); 
+});
 
 
 const campaignSchema = new Schema({
@@ -29,7 +29,7 @@ const campaignSchema = new Schema({
       default: "Point"
     },
     coordinates: {
-      type: [Number], 
+      type: [Number],
       required: true
     }
   },
@@ -37,20 +37,33 @@ const campaignSchema = new Schema({
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
 
-  image: { type: String }, 
+  image: { type: String },
 
   departments: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department'
   }],
 
-  phases: [phaseSchema], 
+  phases: [phaseSchema],
 
 
-  volunteerIds: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
+  volunteers: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+      },
+      registeredAt: {
+        type: Date,
+        default: Date.now
+      }
+    }
+  ],
 
   status: {
     type: String,
@@ -59,7 +72,7 @@ const campaignSchema = new Schema({
   }
 
 }, {
-  timestamps: true 
+  timestamps: true
 });
 
 const Campaign = mongoose.model('Campaign', campaignSchema);

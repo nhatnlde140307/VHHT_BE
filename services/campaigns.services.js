@@ -147,6 +147,86 @@ class CampaignServices {
             throw new Error(`Failed to get campaign: ${err.message}`);
         }
     }
+
+    async updateCampaign(campaignId, payload) {
+        try {
+            if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+                throw new Error("Invalid campaign ID");
+            }
+
+            const campaign = await Campaign.findById(campaignId);
+            if (!campaign) {
+                throw new Error("Campaign not found");
+            }
+            const fields = [
+                "name", "description", "type", "startDate", "endDate",
+                "location", "departments", "phases", "image"
+            ];
+
+            fields.forEach(field => {
+                if (payload[field] !== undefined) {
+                    campaign[field] = payload[field];
+                }
+            });
+
+            const updated = await campaign.save();
+            return updated;
+        } catch (err) {
+            throw new Error(`Failed to update campaign: ${err.message}`);
+        }
+    }
+
+    async registerCampaign({ campaignId, userId }) {
+        try {
+            if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+                throw new Error('Invalid campaign ID');
+            }
+
+            const campaign = await Campaign.findById(campaignId);
+            if (!campaign) {
+                throw new Error('Campaign not found');
+            }
+
+            const already = campaign.volunteers.find(v => v.user.toString() === userId);
+            if (already) {
+                throw new Error('You have already registered');
+            }
+
+            campaign.volunteers.push({ user: userId });
+            await campaign.save();
+
+            return { message: 'Registration submitted, waiting for admin approval' };
+        } catch (err) {
+            throw new Error(`Failed to register: ${err.message}`);
+        }
+    }
+
+    async getCampaignVolunteers(campaignId, statusFilter = null) {
+        if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+            throw new Error('Invalid campaign ID');
+        }
+
+        const campaign = await Campaign.findById(campaignId).populate({
+            path: 'volunteers.user',
+            select: 'fullName email phone'
+        });
+
+        if (!campaign) {
+            throw new Error('Campaign not found');
+        }
+
+        let volunteers = campaign.volunteers;
+
+        // ?status=pending
+        if (statusFilter) {
+            volunteers = volunteers.filter(v => v.status === statusFilter);
+        }
+
+        return {
+            volunteers,
+            total: volunteers.length
+        };
+    }
 }
 
 const campaignServices = new CampaignServices()
