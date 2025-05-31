@@ -104,7 +104,7 @@ export const loginValidator = validate(
         },
         isStrongPassword: {
           options: {
-           minLength: 6,
+            minLength: 6,
             minLowercase: 1
           },
           errorMessage: USER_MESSAGES.PASSWORD_MUST_BE_STRONG
@@ -173,37 +173,37 @@ export const adminValidator = validate(
               throw new ErrorWithStatus({
                 message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
                 status: HTTP_STATUS.UNAUTHORIZED
-              })
+              });
             }
-            const access_token = (value || '').split(' ')[1]
+
+            const access_token = (value || '').split(' ')[1];
 
             if (!access_token) {
               throw new ErrorWithStatus({
                 message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
                 status: HTTP_STATUS.UNAUTHORIZED
-              })
+              });
             }
 
             try {
               const decoded_authorization = await verifyToken({
                 token: access_token,
                 secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
-              })
-              const { role } = decoded_authorization
-              if (role === 'admin') {
-                req.decoded_authorization = decoded_authorization
-              } else {
-                next(new ErrorWithStatus('You not admin', HTTP_STATUS.UNAUTHORIZED))
+              });
+
+              const { role } = decoded_authorization;
+              if (role !== 'admin') {
+                throw new ErrorWithStatus('You are not admin', HTTP_STATUS.UNAUTHORIZED);
               }
-              req.decoded_authorization = decoded_authorization
+
+              req.decoded_authorization = decoded_authorization;
+              return true; // ✅ Trả về true để tiếp tục validate
             } catch (error) {
               throw new ErrorWithStatus({
                 message: capitalize(error.message),
                 status: HTTP_STATUS.UNAUTHORIZED
-              })
+              });
             }
-
-            return true
           }
         }
       }

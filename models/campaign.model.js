@@ -39,12 +39,6 @@ const campaignSchema = new Schema({
 
   image: { type: String }, 
 
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', 
-    required: true
-  },
-
   departments: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department'

@@ -57,7 +57,8 @@ export const CAMPAIGN_MESSAGE = {
   UPDATE_CAMPAIGN_SUCCESS: 'Update campaign successfully',
   GET_CAMPAIGN_SUCCESS: 'Get campaign successfully',
   GET_CAMPAIGN_SUCCESS: 'Get list campaign successfully',
-  UPDATE_CAMPAIGN_SUCCESS: 'Update rating successfully'
+  UPDATE_CAMPAIGN_SUCCESS: 'Update rating successfully',
+  DELETE_CAMPAIGN_SUCCESS: 'Delete campaign successfully'
 }
 export const COUPON_MESSAGE = {
   DELETE_COUPON_SUCCESS: 'delete successfullY'

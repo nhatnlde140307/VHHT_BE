@@ -10,6 +10,7 @@ import { config } from 'dotenv'
 //routes
 import usersRouter from './routes/users.routes.js';
 import campaignRoutes from './routes/campaign.routes.js';
+import checkinRoutes from './routes/checkins.routes.js'
 
 config()
 const app = express()
@@ -35,6 +36,7 @@ app.get('/', async (req, res) => {
 
 app.use('/users', usersRouter)
 app.use('/campaigns', campaignRoutes)
+app.use('/checkins', checkinRoutes)
 
 app.use(defaultErrorHandler)
 app.listen(port, () => {
