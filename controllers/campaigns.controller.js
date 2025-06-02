@@ -99,3 +99,17 @@ export const startCampaignHandler = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const endCampaign = async (req, res) => {
+  try {
+    const campaignId = req.params.campaignId
+    const result = await campaignServices.endCampaignAndIssueCertificates(campaignId)
+
+    res.status(200).json({
+      message: 'Chiến dịch đã kết thúc và chứng chỉ đã được tạo',
+      certificates: result
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}

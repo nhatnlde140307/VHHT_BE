@@ -7,7 +7,8 @@ import User from '../models/users.model.js';
 import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import axios from 'axios';
 import aiServive from './ai.servive.js';
-
+import { generateCertificateAndUpload } from './certificate.service.js';
+import Certificate from '../models/certificate.model.js';
 
 class CampaignServices {
     async getListCampaigns(query) {
@@ -313,6 +314,49 @@ class CampaignServices {
         }
         return campaign;
     }
+
+    generateCode() {
+        return Math.random().toString(36).slice(2, 10).toUpperCase();
+    }
+
+    async endCampaignAndIssueCertificates(campaignId) {
+        const campaign = await Campaign.findById(campaignId).populate('volunteers.user');
+        if (!campaign) throw new Error('Không tìm thấy chiến dịch');
+
+        if (campaign.status === 'completed') {
+            throw new Error('Chiến dịch đã kết thúc trước đó');
+        }
+
+        campaign.status = 'completed';
+        await campaign.save();
+
+        const issuedCertificates = [];
+
+        for (const v of campaign.volunteers) {
+            if (v.status !== 'approved' || !v.user) continue;
+
+            const verifyCode = this.generateCode();
+
+            const fileUrl = await generateCertificateAndUpload({
+                name: v.user.fullName,
+                campaign: campaign.name,
+                date: new Date().toLocaleDateString('vi-VN'),
+                code: verifyCode
+            });
+
+            const cert = await Certificate.create({
+                volunteerId: v.user._id,
+                campaignId: campaign._id,
+                verifyCode,
+                fileUrl,
+            });
+
+            issuedCertificates.push(cert);
+        }
+
+        return issuedCertificates;
+    }
+
 }
 
 const campaignServices = new CampaignServices()

@@ -7,7 +7,7 @@ import { getListCampaigns,getCampaignVolunteers,
         startCampaignHandler,createCampaign,
         deleteCampaign,getCampaignById,
         acceptRequestHandler, updateCampaign,
-        registerCampaign} from '../controllers/campaigns.controller.js'
+        registerCampaign,endCampaign} from '../controllers/campaigns.controller.js'
 
 const campaignRoutes = express.Router()
 
@@ -37,5 +37,7 @@ campaignRoutes.get(
 campaignRoutes.post('/:campaignId/accept/:userId', accessTokenValidator, adminValidator, wrapRequestHandler(acceptRequestHandler))
 
 campaignRoutes.put('/:campaignId/start', adminValidator, wrapRequestHandler(startCampaignHandler));
+
+campaignRoutes.put('/:campaignId/end', adminValidator, wrapRequestHandler(endCampaign));
 
 export default campaignRoutes

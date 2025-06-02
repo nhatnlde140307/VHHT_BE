@@ -13,12 +13,17 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
-    folder: 'VHHT',
-    allowed_formats: ['jpg', 'png', 'jpeg']
+  params: async (req, file) => {
+    const isPdf = file.mimetype === 'application/pdf'
+    return {
+      folder: isPdf ? 'VHHT/templates' : 'VHHT/images',
+      resource_type: isPdf ? 'raw' : 'image',
+      format: isPdf ? 'pdf' : undefined,
+      public_id: file.originalname.split('.')[0],
+    }
   }
 })
 
-const uploadCloud = multer({ storage })
-
+export const uploadCloud = multer({ storage })
 export default uploadCloud
+export { cloudinary }
