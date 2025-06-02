@@ -10,7 +10,6 @@ const phaseSchema = new Schema({
   description: { type: String }
 });
 
-
 const campaignSchema = new Schema({
   name: { type: String, required: true },
 
@@ -45,7 +44,6 @@ const campaignSchema = new Schema({
   }],
 
   phases: [phaseSchema],
-
 
   volunteers: [
     {

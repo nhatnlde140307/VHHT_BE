@@ -79,3 +79,23 @@ export const getCampaignVolunteers = async (req, res) => {
     res.status(400).json({ error: { message: err.message } });
   }
 };
+
+export const acceptRequestHandler = async (req, res) => {
+  try {
+    const { campaignId, userId } = req.params
+    const result = await campaignServices.acceptVolunteerInCampaign({ campaignId, userId })
+    res.json({ message: 'Duyệt tham gia thành công', result })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+
+export const startCampaignHandler = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const updated = await campaignServices.startCampaign(campaignId);
+    res.json({ message: 'Chiến dịch được bắt đầu', campaign: updated });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

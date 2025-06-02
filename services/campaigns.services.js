@@ -3,6 +3,11 @@ import mongoose from 'mongoose'
 import { hashPassword } from '../utils/crypto.js'
 import Department from '../models/departments.model.js';
 import { CAMPAIGN_MESSAGE } from '../constants/messages.js';
+import User from '../models/users.model.js';
+import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
+import axios from 'axios';
+import aiServive from './ai.servive.js';
+
 
 class CampaignServices {
     async getListCampaigns(query) {
@@ -226,6 +231,87 @@ class CampaignServices {
             volunteers,
             total: volunteers.length
         };
+    }
+
+    async acceptVolunteerInCampaign({ campaignId, userId }) {
+        const campaign = await Campaign.findById(campaignId);
+        if (!campaign) throw new Error('Không tìm thấy chiến dịch');
+
+        const volunteer = campaign.volunteers.find(v => v.user.toString() === userId);
+        if (!volunteer) throw new Error('Người dùng chưa đăng ký chiến dịch này');
+
+        if (volunteer.status === 'approved') {
+            throw new Error('Người dùng đã được duyệt trước đó');
+        }
+
+        volunteer.status = 'approved';
+        await campaign.save();
+
+        const user = await User.findById(userId);
+        if (user) {
+            const emailContent = {
+                body: {
+                    name: user.fullName || user.email,
+                    intro: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name}" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
+                    outro: 'Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.'
+                }
+            };
+
+            const mailBody = MailGenerator.generate(emailContent);
+
+            await transporter.sendMail({
+                from: process.env.EMAIL,
+                to: user.email,
+                subject: 'Xác nhận tham gia chiến dịch - VHHT',
+                html: mailBody
+            });
+        }
+
+        return {
+            campaign: campaign.name,
+            user: user?.fullName || 'N/A',
+            status: 'approved'
+        };
+    }
+
+    async startCampaign(campaignId) {
+        if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+            throw new Error('Invalid campaign ID');
+        }
+
+        const campaign = await Campaign.findById(campaignId);
+        if (!campaign) {
+            throw new Error('Campaign not found');
+        }
+
+        if (campaign.status !== 'upcoming') {
+            throw new Error('Only upcoming campaigns can be started');
+        }
+
+        campaign.status = 'in-progress';
+        await campaign.save();
+
+        try {
+            // 🔹 Gọi AI để tạo nội dung
+            const content = await aiServive.generateCampaignContent({
+                title: campaign.name,
+                description: campaign.description,
+                location: campaign.location?.name || 'Việt Nam',
+                startDate: campaign.startDate.toLocaleDateString(),
+                endDate: campaign.endDate.toLocaleDateString(),
+                tone: 'truyền cảm hứng'
+            });
+
+            await axios.post('https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/', {
+                title: campaign.name,
+                content,
+                startDate: campaign.startDate.toLocaleDateString(),
+                link: `https://your-site.com/campaigns/${campaign._id}`
+            });
+        } catch (zapErr) {
+            console.error('❌ Zapier or AI failed:', zapErr.message);
+        }
+        return campaign;
     }
 }
 

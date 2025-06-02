@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken'
 import User from '../models/users.model.js'
 import { comparePassword, hashPassword } from '../utils/crypto.js'
 import { TokenType } from '../constants/enums.js'
-import {MailGenerator,transporter} from '../utils/nodemailerConfig.js'
+import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import mongoose from 'mongoose'
 config()
 class UsersService {
@@ -172,7 +172,7 @@ class UsersService {
 
   async changePassword(user_id, oldPassword, newPassword) {
     try {
-  
+
       const user = await User.findById(user_id)
       const isPasswordValid = await comparePassword(oldPassword, user.password)
       if (!isPasswordValid) {
@@ -190,7 +190,7 @@ class UsersService {
     }
   }
 
-async updateUser(user_id, payload, payloadFile) {
+  async updateUser(user_id, payload, payloadFile) {
     try {
       if (payloadFile && payloadFile.path) {
         payload.avatar = payloadFile.path
@@ -203,7 +203,7 @@ async updateUser(user_id, payload, payloadFile) {
     }
   }
 
-async verifyEmail(token) {
+  async verifyEmail(token) {
     try {
       const decoded = jwt.verify(token, process.env.EMAIL_SECRET)
       const user = await User.findById(decoded.userId)
@@ -220,6 +220,26 @@ async verifyEmail(token) {
       console.log(access_token)
     } catch (error) {
       throw new Error(error.message || 'Invalid or expired token')
+    }
+  }
+
+  async changePassword(user_id, oldPassword, newPassword) {
+    try {
+      const user = await User.findById(user_id)
+
+      const isPasswordValid = await comparePassword(oldPassword, user.password)
+      if (!isPasswordValid) {
+        throw new Error('Invalid old password')
+      }
+
+      user.password = hashPassword(newPassword).toString()
+      await user.save()
+
+      const updatedUser = await User.findById(user_id)
+
+      return { message: 'Password changed successfully', user: updatedUser }
+    } catch (error) {
+      console.log(error)
     }
   }
 

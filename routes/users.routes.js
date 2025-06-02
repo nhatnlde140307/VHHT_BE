@@ -4,7 +4,7 @@ import {
 } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
 import {
-  registerController,verifyEmail,updateUserController,loginController
+  registerController,verifyEmail,updateUserController,loginController,googleController,changePasswordController
 } from '../controllers/users.controller.js'
 
 import uploadCloud from '../utils/cloudinary.config.js'
@@ -25,6 +25,10 @@ usersRoutes.put(
   accessTokenValidator,                    
   wrapRequestHandler(updateUserController) 
 )
+
+usersRoutes.post('/google', wrapRequestHandler(googleController))
+
+usersRoutes.put('/change-password', accessTokenValidator, wrapRequestHandler(changePasswordController))
 
 
 export default usersRoutes

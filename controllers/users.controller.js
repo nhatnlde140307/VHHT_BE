@@ -12,6 +12,18 @@ export const registerController = async (req, res, next) => {
   })
 }
 
+export const googleController = async (req, res, next) => {
+  console.log(req.body)
+  const result = await usersService.google(req.body)
+
+  return res.json({
+    message: USER_MESSAGES.LOGIN_SUCCESS,
+    access_token: result?.access_token?.toString(),
+    result: result.rest,
+    id: result?._id?.toString()
+  })
+}
+
 export const loginController = async (req, res) => {
   const result = await usersService.login(req.user)
 
@@ -50,5 +62,22 @@ export const verifyEmail = async (req, res) => {
     })
   } catch (err) {
     res.status(400).json({ message: err.message })
+  }
+}
+
+export const changePasswordController = async (req, res, next) => {
+  const { oldPassword, newPassword } = req.body
+  const userId = req.decoded_authorization.user_id 
+
+  try {
+    const result = await usersService.changePassword(userId, oldPassword, newPassword)
+
+    return res.json({
+      message: "USER_MESSAGES.CHANGE_PASSWORD_SUCCESS",
+      result: result.user
+    })
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({ message: 'Internal Server Error' })
   }
 }
