@@ -23,21 +23,27 @@ class CampaignServices {
                 queryObj.name = { $regex: queryObj.name, $options: 'i' };
             }
 
-            // Advanced filter operators
+            // Filter by certificatesIssued (Boolean)
+            if (queryObj.certificatesIssued !== undefined) {
+                queryObj.certificatesIssued = queryObj.certificatesIssued === 'true';
+            }
+
+            // Advanced filter operators (gte, gt, lte, lt)
             let queryStr = JSON.stringify(queryObj);
             queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, match => `$${match}`);
 
             let mongooseQuery = Campaign.find(JSON.parse(queryStr))
-                .populate('createdBy', 'fullname')
+                .populate('createdBy', 'fullname') // nếu có field này
                 .populate('departments', 'name')
-                .populate('volunteerIds', 'fullname');
+                .populate('volunteers.user', 'fullname')
+                .populate('categories', 'name color icon');
 
             // Sorting
             if (sort) {
                 const sortBy = sort.split(',').join(' ');
                 mongooseQuery = mongooseQuery.sort(sortBy);
             } else {
-                mongooseQuery = mongooseQuery.sort('-createdAt'); // Sort theo ngày mới nhất
+                mongooseQuery = mongooseQuery.sort('-createdAt');
             }
 
             // Select fields
@@ -76,15 +82,16 @@ class CampaignServices {
                 endDate,
                 image,
                 departments = [],
-                phases = []
+                phases = [],
+                categories = []
             } = payload;
 
-            // Validate cơ bản
+            // Validate bắt buộc
             if (!name || !type || !description || !location || !startDate || !endDate) {
                 throw new Error('Missing required fields');
             }
 
-            // Validate location format
+            // Validate location
             if (
                 !location.type ||
                 location.type !== "Point" ||
@@ -94,12 +101,17 @@ class CampaignServices {
                 throw new Error("Invalid location format: Must be { type: 'Point', coordinates: [lng, lat] }");
             }
 
-            // Optional: validate phases if any
+            // Validate phases
             phases.forEach(phase => {
                 if (!phase.name || !phase.start || !phase.end) {
                     throw new Error("Each phase must include name, start, and end date");
                 }
             });
+
+            // Validate categories: phải là array ObjectId hoặc string hợp lệ
+            if (!Array.isArray(categories)) {
+                throw new Error("Categories must be an array");
+            }
 
             const newCampaign = await Campaign.create({
                 name,
@@ -110,7 +122,9 @@ class CampaignServices {
                 endDate: new Date(endDate),
                 image,
                 departments,
-                phases
+                phases,
+                categories,
+                certificatesIssued: false
             });
 
             return newCampaign;
@@ -142,7 +156,8 @@ class CampaignServices {
 
             const campaign = await Campaign.findById(campaignId)
                 .populate('departments', 'name')
-                .populate('volunteerIds', 'fullname');
+                .populate('volunteers.user', 'fullname')
+                .populate('categories', 'name');
 
             if (!campaign) {
                 throw new Error('Campaign not found');
@@ -164,9 +179,10 @@ class CampaignServices {
             if (!campaign) {
                 throw new Error("Campaign not found");
             }
+
             const fields = [
                 "name", "description", "type", "startDate", "endDate",
-                "location", "departments", "phases", "image"
+                "location", "departments", "phases", "image", "categories"
             ];
 
             fields.forEach(field => {
@@ -174,6 +190,32 @@ class CampaignServices {
                     campaign[field] = payload[field];
                 }
             });
+
+            // Validate location nếu có
+            if (payload.location) {
+                const { type, coordinates } = payload.location;
+                if (
+                    type !== 'Point' ||
+                    !Array.isArray(coordinates) ||
+                    coordinates.length !== 2
+                ) {
+                    throw new Error("Invalid location format: { type: 'Point', coordinates: [lng, lat] }");
+                }
+            }
+
+            // Validate phases nếu có
+            if (Array.isArray(payload.phases)) {
+                for (const phase of payload.phases) {
+                    if (!phase.name || !phase.start || !phase.end) {
+                        throw new Error("Each phase must include name, start, and end");
+                    }
+                }
+            }
+
+            // Optionally validate categories are ObjectIds
+            if (payload.categories && !Array.isArray(payload.categories)) {
+                throw new Error("Categories must be an array");
+            }
 
             const updated = await campaign.save();
             return updated;
@@ -319,7 +361,7 @@ class CampaignServices {
         return Math.random().toString(36).slice(2, 10).toUpperCase();
     }
 
-    async endCampaignAndIssueCertificates(campaignId) {
+    async endCampaignAndIssueCertificates(campaignId, generateCertificate = true) {
         const campaign = await Campaign.findById(campaignId).populate('volunteers.user');
         if (!campaign) throw new Error('Không tìm thấy chiến dịch');
 
@@ -328,31 +370,36 @@ class CampaignServices {
         }
 
         campaign.status = 'completed';
-        await campaign.save();
 
         const issuedCertificates = [];
 
-        for (const v of campaign.volunteers) {
-            if (v.status !== 'approved' || !v.user) continue;
+        if (generateCertificate) {
+            for (const v of campaign.volunteers) {
+                if (v.status !== 'approved' || !v.user) continue;
 
-            const verifyCode = this.generateCode();
+                const verifyCode = this.generateCode();
 
-            const fileUrl = await generateCertificateAndUpload({
-                name: v.user.fullName,
-                campaign: campaign.name,
-                date: new Date().toLocaleDateString('vi-VN'),
-                code: verifyCode
-            });
+                const fileUrl = await generateCertificateAndUpload({
+                    name: v.user.fullName,
+                    campaign: campaign.name,
+                    date: new Date().toLocaleDateString('vi-VN'),
+                    code: verifyCode
+                });
 
-            const cert = await Certificate.create({
-                volunteerId: v.user._id,
-                campaignId: campaign._id,
-                verifyCode,
-                fileUrl,
-            });
+                const cert = await Certificate.create({
+                    volunteerId: v.user._id,
+                    campaignId: campaign._id,
+                    verifyCode,
+                    fileUrl
+                });
 
-            issuedCertificates.push(cert);
+                issuedCertificates.push(cert);
+            }
+
+            campaign.certificatesIssued = true;
         }
+
+        await campaign.save();
 
         return issuedCertificates;
     }

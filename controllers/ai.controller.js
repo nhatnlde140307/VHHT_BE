@@ -1,4 +1,5 @@
 import aiServive from "../services/ai.servive.js"
+import { AI_EXENTD_MESSAGE } from "../constants/messages.js"
 
 export const generateContentController = async (req, res) => {
   try {
@@ -8,7 +9,7 @@ export const generateContentController = async (req, res) => {
       location,
       startDate,
       endDate,
-      tone = 'truyền cảm hứng'
+      tone = AI_EXENTD_MESSAGE.DEFAULT_TONE_AI
     } = req.body
 
     const content = await aiServive.generateCampaignContent({
@@ -23,6 +24,6 @@ export const generateContentController = async (req, res) => {
     res.json({ content })
   } catch (err) {
     console.error(err.message)
-    res.status(500).json({ error: 'Lỗi khi tạo nội dung từ AI' })
+    res.status(500).json({ error: AI_EXENTD_MESSAGE.ERROR_IN_CONTENT })
   }
 }

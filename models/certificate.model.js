@@ -27,7 +27,7 @@ const certificateSchema = new Schema({
     unique: true
   }
 }, {
-  timestamps: true // Tự động tạo createdAt, updatedAt
+  timestamps: true 
 })
 
 const Certificate = mongoose.model('Certificate', certificateSchema)

@@ -34,8 +34,8 @@ class UsersService {
         { expiresIn: '1h' }
       )
 
-      const verifyLink = `http://localhost:4000/users/verify-email?token=${verifyToken}`
-
+      const verifyLink = `${process.env.FRONTEND_URL}/users/verify-email?token=${verifyToken}`
+      
       const emailContent = {
         body: {
           name: payload.name || payload.email,

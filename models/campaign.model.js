@@ -63,6 +63,16 @@ const campaignSchema = new Schema({
     }
   ],
 
+  certificatesIssued: {
+    type: Boolean,
+    default: false
+  },
+
+  categories: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category'
+  }],
+
   status: {
     type: String,
     enum: ["upcoming", "in-progress", "completed"],

@@ -1,5 +1,6 @@
 import { config } from 'dotenv'
 import axios from 'axios'
+import { AI_EXENTD_MESSAGE } from '../constants/messages.js'
 
 config()
 
@@ -7,7 +8,7 @@ class AiService {
     async generateCampaignContent({ title, description, location, startDate, endDate, tone }) {
     const prompt = `
             Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho chiến dịch thiện nguyện sau:
-            - Tên chiến dịch: ${title}
+            - Tên chiến dịch: ${title}  
             - Mô tả chiến dịch: ${description}
             - Địa điểm: ${location}
             - Thời gian: từ ${startDate} đến ${endDate}
@@ -28,8 +29,7 @@ class AiService {
                 }
             }
         )
-
-        return response.data.generations[0]?.text || 'Không thể tạo nội dung.'
+        return response.data.generations[0]?.text || AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
     }
 }
 

@@ -84,7 +84,7 @@ export const acceptRequestHandler = async (req, res) => {
   try {
     const { campaignId, userId } = req.params
     const result = await campaignServices.acceptVolunteerInCampaign({ campaignId, userId })
-    res.json({ message: 'Duyệt tham gia thành công', result })
+    res.json({ message: USER_MESSAGES.ACCEPT_CAMPAIGN_SUCCESS, result })
   } catch (error) {
     res.status(400).json({ message: error.message })
   }
@@ -94,7 +94,7 @@ export const startCampaignHandler = async (req, res) => {
   try {
     const { campaignId } = req.params;
     const updated = await campaignServices.startCampaign(campaignId);
-    res.json({ message: 'Chiến dịch được bắt đầu', campaign: updated });
+    res.json({ message: CAMPAIGN_MESSAGE.START_CAMPAIGN_SUCCESS, campaign: updated });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -102,14 +102,22 @@ export const startCampaignHandler = async (req, res) => {
 
 export const endCampaign = async (req, res) => {
   try {
-    const campaignId = req.params.campaignId
-    const result = await campaignServices.endCampaignAndIssueCertificates(campaignId)
+    const campaignId = req.params.campaignId;
+    const { certificate } = req.query;
+    const generateCertificate = certificate !== 'false';
+
+    const result = await campaignServices.endCampaignAndIssueCertificates(
+      campaignId,
+      generateCertificate
+    );
 
     res.status(200).json({
-      message: 'Chiến dịch đã kết thúc và chứng chỉ đã được tạo',
+      message: generateCertificate
+        ? 'Chiến dịch đã kết thúc và chứng chỉ đã được tạo'
+        : 'Chiến dịch đã kết thúc (không tạo chứng chỉ)',
       certificates: result
-    })
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-}
+};

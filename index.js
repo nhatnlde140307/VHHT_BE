@@ -13,6 +13,7 @@ import campaignRoutes from './routes/campaign.routes.js';
 import checkinRoutes from './routes/checkins.routes.js'
 import aiRouter from './routes/ai.routes.js'
 import uploadRouter from './routes/upload.routes.js'
+import newsPostRoutes from './routes/news.routes.js'
 
 config()
 const app = express()
@@ -24,7 +25,7 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
   }));
@@ -41,6 +42,7 @@ app.use('/campaigns', campaignRoutes)
 app.use('/checkins', checkinRoutes)
 app.use('/ai', aiRouter)
 app.use('/cloud', uploadRouter)
+app.use('/news', newsPostRoutes)
 
 app.use(defaultErrorHandler)
 app.listen(port, () => {

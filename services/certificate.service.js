@@ -24,7 +24,7 @@ export async function uploadPDFtoCloudinary(buffer, fileName) {
 }
 
 export async function generateCertificateAndUpload({ name, campaign, date, code }) {
-  const templateUrl = 'https://res.cloudinary.com/dw2tbex85/raw/upload/v1748906141/VHHT/templates/CERTADOBE.pdf'
+  const templateUrl = process.env.CERTIFICATE_TEMPLATE
   const existingPdfBytes = await fetch(templateUrl).then(res => res.arrayBuffer())
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
 

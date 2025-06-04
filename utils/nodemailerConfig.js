@@ -20,6 +20,6 @@ export const MailGenerator = new Mailgen({
   theme: 'default',
   product: {
     name: 'VHHT',
-    link: 'http://localhost:3000'
+    link: process.env.FRONTEND_URL
   }
 })
