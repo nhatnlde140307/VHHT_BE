@@ -8,7 +8,7 @@ import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import axios from 'axios';
 import aiServive from './ai.servive.js';
 import { generateCertificateAndUpload } from './certificate.service.js';
-import Certificate from '../models/certificate.model.js';
+import Certificate from '../models/certificate.model.js'
 
 class CampaignServices {
     async getListCampaigns(query) {
@@ -339,7 +339,7 @@ class CampaignServices {
             const content = await aiServive.generateCampaignContent({
                 title: campaign.name,
                 description: campaign.description,
-                location: campaign.location?.name || 'Việt Nam',
+                location: campaign.location?.name || 'Hà Tĩnh',
                 startDate: campaign.startDate.toLocaleDateString(),
                 endDate: campaign.endDate.toLocaleDateString(),
                 tone: 'truyền cảm hứng'
@@ -349,6 +349,7 @@ class CampaignServices {
                 title: campaign.name,
                 content,
                 startDate: campaign.startDate.toLocaleDateString(),
+                image: campaign.image,
                 link: `https://your-site.com/campaigns/${campaign._id}`
             });
         } catch (zapErr) {
@@ -369,16 +370,18 @@ class CampaignServices {
             throw new Error('Chiến dịch đã kết thúc trước đó');
         }
 
-        campaign.status = 'completed';
+        if (generateCertificate && campaign.certificatesIssued) {
+            throw new Error('Chiến dịch này đã được cấp chứng chỉ trước đó');
+        }
 
+        campaign.status = 'completed';
         const issuedCertificates = [];
 
         if (generateCertificate) {
             for (const v of campaign.volunteers) {
                 if (v.status !== 'approved' || !v.user) continue;
 
-                const verifyCode = this.generateCode();
-
+                const verifyCode = this.generateCode(); // thay vì this.generateCode()
                 const fileUrl = await generateCertificateAndUpload({
                     name: v.user.fullName,
                     campaign: campaign.name,
@@ -400,7 +403,6 @@ class CampaignServices {
         }
 
         await campaign.save();
-
         return issuedCertificates;
     }
 

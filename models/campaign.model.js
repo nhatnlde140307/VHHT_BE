@@ -30,6 +30,9 @@ const campaignSchema = new Schema({
     coordinates: {
       type: [Number],
       required: true
+    },
+    address:{
+      type: String
     }
   },
 

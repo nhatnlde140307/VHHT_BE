@@ -34,7 +34,7 @@ class UsersService {
         { expiresIn: '1h' }
       )
 
-      const verifyLink = `${process.env.FRONTEND_URL}/users/verify-email?token=${verifyToken}`
+      const verifyLink = `${process.env.BACKEND_URL}/users/verify-email?token=${verifyToken}`
       
       const emailContent = {
         body: {
@@ -217,7 +217,6 @@ class UsersService {
       const access_token = await this.signAccessToken(user._id.toString(), user.role)
 
       return { access_token }
-      console.log(access_token)
     } catch (error) {
       throw new Error(error.message || 'Invalid or expired token')
     }

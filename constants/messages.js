@@ -51,6 +51,7 @@ export const MODEL_MESSAGE = {
   CREATE_MODEL_SUCCESS: 'Create model successfullY'
 }
 export const CAMPAIGN_MESSAGE = {
+  NOT_FOUND: 'Campaign not exist',
   GET_CAMPAIGN_SUCCESS: 'GetList campaign successfully',
   CREATE_CAMPAIGN_SUCCESS: 'Create campaign successfully',
   UPDATE_CAMPAIGN_SUCCESS: 'Update campaign successfully',
@@ -65,3 +66,9 @@ export const AI_EXENTD_MESSAGE = {
     DEFAULT_TONE_AI: 'truyền cảm hứng',
     ERROR_IN_CONTENT: "An error occur when generate content from ai"
 }
+
+export const CERTIFICATE_MESSAGE = {
+    GET_BY_CAMPAIGN_SUCCESS: "Get certificate by campaignId success",
+    GET_BY_CAMPAIGN_FAIL: "Get certificate by campaignId fail"
+}
+

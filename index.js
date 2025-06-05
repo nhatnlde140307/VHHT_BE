@@ -14,6 +14,7 @@ import checkinRoutes from './routes/checkins.routes.js'
 import aiRouter from './routes/ai.routes.js'
 import uploadRouter from './routes/upload.routes.js'
 import newsPostRoutes from './routes/news.routes.js'
+import certificateRoutes from './routes/cerificate.routes.js'
 
 config()
 const app = express()
@@ -43,6 +44,7 @@ app.use('/checkins', checkinRoutes)
 app.use('/ai', aiRouter)
 app.use('/cloud', uploadRouter)
 app.use('/news', newsPostRoutes)
+app.use('/certificate', certificateRoutes)
 
 app.use(defaultErrorHandler)
 app.listen(port, () => {

@@ -4,6 +4,11 @@ import fs from 'fs'
 import path from 'path'
 import QRCode from 'qrcode'
 import { cloudinary } from '../utils/cloudinary.config.js'
+import { config } from 'dotenv'
+import { HTTP_STATUS } from '../constants/httpStatus.js'
+import { CAMPAIGN_MESSAGE } from '../constants/messages.js'
+import Certificate from '../models/certificate.model.js'
+config()
 
 export async function uploadPDFtoCloudinary(buffer, fileName) {
   return new Promise((resolve, reject) => {
@@ -69,3 +74,35 @@ export async function generateCertificateAndUpload({ name, campaign, date, code 
   const fileName = `${name.replace(/\s+/g, '_')}_${code}`
   return await uploadPDFtoCloudinary(buffer, fileName)
 }
+
+export async function getCampaignById(campaignId) {
+  if (!campaignId) {
+    throw new Error('CAMPAIGN_NOT_FOUND');
+  }
+
+  const listCerts = await Certificate.find({ campaignId }).populate('campaignId', 'name');
+  return listCerts;
+}
+
+
+export async function getUserById(userId) {
+  if (!userId) {
+    throw new Error('User_NOT_FOUND');
+  }
+
+  const listCerts = await Certificate.find({ volunteerId: userId }).populate('campaignId', 'name');
+  return listCerts;
+}
+
+export const getDownloadUrl = async (certificateId) => {
+  const certificate = await Certificate.findById(certificateId);
+
+  if (!certificate || !certificate.fileUrl) {
+    throw new Error('Không tìm thấy chứng chỉ');
+  }
+
+const downloadUrl = certificate.fileUrl.replace(
+  '/upload/',
+  `/upload/fl_attachment:certificate-${certificate.verifyCode}/`
+);  return downloadUrl;
+};

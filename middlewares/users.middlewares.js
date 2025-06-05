@@ -13,6 +13,7 @@ const { capitalize } = pkg
 import pkg1 from 'jsonwebtoken'
 const { JsonWebTokenError } = pkg1
 import { config } from 'dotenv'
+import jwt from 'jsonwebtoken'
 
 config()
 
