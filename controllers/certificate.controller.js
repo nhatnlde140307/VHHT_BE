@@ -1,6 +1,6 @@
 import { CERTIFICATE_MESSAGE, CAMPAIGN_MESSAGE } from '../constants/messages.js'
 import { HTTP_STATUS } from '../constants/httpStatus.js'
-import { getCampaignById, getUserById, getDownloadUrl } from '../services/certificate.service.js'
+import { getCampaignById, getUserById, getDownloadUrl,deleteCertificateById } from '../services/certificate.service.js'
 import jwt from 'jsonwebtoken'
 import Certificate from '../models/certificate.model.js';
 
@@ -87,5 +87,15 @@ export const downloadCertificate = async (req, res) => {
   } catch (error) {
     console.error('Download error:', error.message);
     res.status(404).json({ message: error.message || 'Không thể tải chứng chỉ' });
+  }
+};
+
+export const deleteCertificate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteCertificateById(id);
+    res.status(200).json({ message: 'Xoá chứng chỉ thành công' });
+  } catch (error) {
+    res.status(404).json({ message: error.message || 'Không thể xoá chứng chỉ' });
   }
 };

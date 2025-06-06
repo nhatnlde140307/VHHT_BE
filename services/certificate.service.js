@@ -106,3 +106,17 @@ const downloadUrl = certificate.fileUrl.replace(
   `/upload/fl_attachment:certificate-${certificate.verifyCode}/`
 );  return downloadUrl;
 };
+
+export const deleteCertificateById = async (id) => {
+  const cert = await Certificate.findByIdAndDelete(id);
+  if (!cert) throw new Error('Không tìm thấy chứng chỉ');
+
+  const matches = cert.fileUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.pdf/);
+  if (matches && matches.length >= 2) {
+    const publicId = matches[1]; 
+    
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'raw'
+    });
+  }
+};

@@ -71,15 +71,15 @@ class CampaignServices {
         }
     }
 
-    async createCampaign(payload) {
+    async createCampaign(payload, userId) {
         try {
             const {
                 name,
-                type,
                 description,
                 location,
                 startDate,
                 endDate,
+                createdBy,
                 image,
                 departments = [],
                 phases = [],
@@ -87,7 +87,7 @@ class CampaignServices {
             } = payload;
 
             // Validate bắt buộc
-            if (!name || !type || !description || !location || !startDate || !endDate) {
+            if (!name || !description || !location || !startDate || !endDate) {
                 throw new Error('Missing required fields');
             }
 
@@ -115,13 +115,13 @@ class CampaignServices {
 
             const newCampaign = await Campaign.create({
                 name,
-                type,
                 description,
                 location,
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
                 image,
                 departments,
+                createdBy: userId,
                 phases,
                 categories,
                 certificatesIssued: false
@@ -181,7 +181,7 @@ class CampaignServices {
             }
 
             const fields = [
-                "name", "description", "type", "startDate", "endDate",
+                "name", "description", "startDate", "endDate",
                 "location", "departments", "phases", "image", "categories"
             ];
 
@@ -339,7 +339,7 @@ class CampaignServices {
             const content = await aiServive.generateCampaignContent({
                 title: campaign.name,
                 description: campaign.description,
-                location: campaign.location?.name || 'Hà Tĩnh',
+                location: campaign.location?.address,
                 startDate: campaign.startDate.toLocaleDateString(),
                 endDate: campaign.endDate.toLocaleDateString(),
                 tone: 'truyền cảm hứng'
@@ -362,7 +362,7 @@ class CampaignServices {
         return Math.random().toString(36).slice(2, 10).toUpperCase();
     }
 
-    async endCampaignAndIssueCertificates(campaignId, generateCertificate = true) {
+    async endCampaignAndIssueCertificates(campaignId, generateCertificate = true, mail = false) {
         const campaign = await Campaign.findById(campaignId).populate('volunteers.user');
         if (!campaign) throw new Error('Không tìm thấy chiến dịch');
 
@@ -377,12 +377,16 @@ class CampaignServices {
         campaign.status = 'completed';
         const issuedCertificates = [];
 
-        if (generateCertificate) {
-            for (const v of campaign.volunteers) {
-                if (v.status !== 'approved' || !v.user) continue;
+        for (const v of campaign.volunteers) {
+            if (v.status !== 'approved' || !v.user) continue;
 
-                const verifyCode = this.generateCode(); // thay vì this.generateCode()
-                const fileUrl = await generateCertificateAndUpload({
+            const isPoor = v.evaluation === 'poor';
+            let fileUrl = null;
+
+            //  Cấp chứng chỉ nếu không bị đánh giá poor
+            if (generateCertificate && !isPoor) {
+                const verifyCode = this.generateCode();
+                fileUrl = await generateCertificateAndUpload({
                     name: v.user.fullName,
                     campaign: campaign.name,
                     date: new Date().toLocaleDateString('vi-VN'),
@@ -399,6 +403,108 @@ class CampaignServices {
                 issuedCertificates.push(cert);
             }
 
+            //  Gửi email nếu cần
+            if (mail) {
+                try {
+                    if (isPoor) {
+                        const message = `
+Chào bạn,
+
+Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}". Chúng tôi ghi nhận sự hiện diện của bạn trong suốt chương trình.
+
+Dựa trên đánh giá từ ban tổ chức, rất tiếc bạn **không đủ điều kiện để được cấp chứng chỉ hoàn thành**.
+
+Hy vọng trong tương lai bạn sẽ có thêm cơ hội cải thiện và đóng góp tích cực hơn.
+
+Trân trọng,  
+Đội ngũ VHHT
+          `.trim();
+
+                        const mailBody = MailGenerator.generate({
+                            body: {
+                                name: v.user.fullName || v.user.email,
+                                intro: message
+                            }
+                        });
+
+                        await transporter.sendMail({
+                            from: process.env.EMAIL,
+                            to: v.user.email,
+                            subject: `Kết quả tham gia chiến dịch "${campaign.name}"`,
+                            html: mailBody
+                        });
+                    } else {
+                        // Tone theo evaluation
+                        let tone;
+                        switch (v.evaluation) {
+                            case 'excellent':
+                                tone = 'nồng nhiệt, cảm động, truyền cảm hứng';
+                                break;
+                            case 'good':
+                                tone = 'tích cực, thân thiện';
+                                break;
+                            case 'average':
+                                tone = 'lịch sự, nhẹ nhàng';
+                                break;
+                            default:
+                                tone = 'thân thiện';
+                        }
+
+                        let evaluationText;
+                        switch (v.evaluation) {
+                            case 'excellent':
+                                evaluationText = 'Bạn được đánh giá là một tình nguyện viên xuất sắc.';
+                                break;
+                            case 'good':
+                                evaluationText = 'Bạn đã hoàn thành nhiệm vụ rất tốt trong chiến dịch.';
+                                break;
+                            case 'average':
+                                evaluationText = 'Bạn đã hoàn thành nhiệm vụ ở mức khá.';
+                                break;
+                            default:
+                                evaluationText = '';
+                        }
+                        const emailContentText = await aiServive.generateThankYouEmail({
+                            recipientName: v.user.fullName || v.user.email,
+                            campaignName: campaign.name,
+                            contributionDetails: 'đồng hành và hỗ trợ trong chiến dịch',
+                            senderName: 'Đội ngũ VHHT',
+                            tone,
+                            evaluationText 
+                        });
+
+                        const mailBody = MailGenerator.generate({
+                            body: {
+                                name: v.user.fullName || v.user.email,
+                                intro: emailContentText,
+                                ...(fileUrl && {
+                                    action: {
+                                        instructions: 'Bạn có thể tải chứng chỉ tham gia tại liên kết sau:',
+                                        button: {
+                                            color: '#22BC66',
+                                            text: 'Xem chứng chỉ',
+                                            link: fileUrl
+                                        }
+                                    }
+                                }),
+                                outro: 'Trân trọng cảm ơn bạn một lần nữa!'
+                            }
+                        });
+
+                        await transporter.sendMail({
+                            from: process.env.EMAIL,
+                            to: v.user.email,
+                            subject: `Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}"`,
+                            html: mailBody
+                        });
+                    }
+                } catch (emailErr) {
+                    console.error(`❌ Gửi email thất bại cho ${v.user.email}:`, emailErr.message);
+                }
+            }
+        }
+
+        if (generateCertificate) {
             campaign.certificatesIssued = true;
         }
 

@@ -19,7 +19,8 @@ export const getListCampaigns = async (req, res, next) => {
 }
 
 export const createCampaign = async (req, res, next) => {
-  const result = await campaignServices.createCampaign(req.body)
+  const userId = req.decoded_authorization.user_id;
+  const result = await campaignServices.createCampaign(req.body,userId)
   return res.status(HTTP_STATUS.CREATED).json({
     message: CAMPAIGN_MESSAGE.CREATE_CAMPAIGN_SUCCESS,
     result
@@ -27,13 +28,13 @@ export const createCampaign = async (req, res, next) => {
 }
 
 export const deleteCampaign = async (req, res) => {
-    try {
-        const { campaignId } = req.params;
-        const result = await campaignServices.deleteCampaign(campaignId);
-        return res.status(200).json(result); 
-    } catch (err) {
-        return res.status(400).json({ error: { message: err.message } });
-    }
+  try {
+    const { campaignId } = req.params;
+    const result = await campaignServices.deleteCampaign(campaignId);
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(400).json({ error: { message: err.message } });
+  }
 };
 
 export const getCampaignById = async (req, res) => {
@@ -59,7 +60,7 @@ export const updateCampaign = async (req, res) => {
 export const registerCampaign = async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const userId = req.decoded_authorization.user_id; 
+    const userId = req.decoded_authorization.user_id;
 
     const result = await campaignServices.registerCampaign({ campaignId, userId });
     res.status(200).json(result);
@@ -103,12 +104,15 @@ export const startCampaignHandler = async (req, res) => {
 export const endCampaign = async (req, res) => {
   try {
     const campaignId = req.params.campaignId;
-    const { certificate } = req.query;
+    const { certificate = 'true', mail = 'false' } = req.query;
+
     const generateCertificate = certificate !== 'false';
+    const sendMail = mail === 'true';
 
     const result = await campaignServices.endCampaignAndIssueCertificates(
       campaignId,
-      generateCertificate
+      generateCertificate,
+      sendMail
     );
 
     res.status(200).json({

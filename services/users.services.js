@@ -3,6 +3,7 @@ import { signToken } from '../utils/jwt.js'
 import { ObjectId } from 'mongodb'
 import jwt from 'jsonwebtoken'
 import User from '../models/users.model.js'
+import OrganizationInfo from '../models/organizationInfo.model.js'
 import { comparePassword, hashPassword } from '../utils/crypto.js'
 import { TokenType } from '../constants/enums.js'
 import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
@@ -35,7 +36,7 @@ class UsersService {
       )
 
       const verifyLink = `${process.env.BACKEND_URL}/users/verify-email?token=${verifyToken}`
-      
+
       const emailContent = {
         body: {
           name: payload.name || payload.email,
@@ -65,6 +66,67 @@ class UsersService {
 
     } catch (error) {
       throw new Error(error)
+    }
+  }
+
+  async registerOrg(payload) {
+    const user_id = new ObjectId()
+
+    const newUser = new User({
+      _id: user_id,
+      fullName: payload.fullName,
+      email: payload.email,
+      phone: payload.phone,
+      date_of_birth: payload.date_of_birth,
+      password: hashPassword(payload.password).toString(),
+      role: 'organization',
+      status: 'inactive'
+    })
+
+    const newOrganizationInfo = new OrganizationInfo({
+      name: payload.orgName,
+      user: user_id,
+      website: payload.website,
+      description: payload.orgDescription,
+      address: payload.address,
+      logo: payload.logo
+    })
+
+    try {
+      const user = await newUser.save()
+      const organizationInfo = await newOrganizationInfo.save()
+
+      const emailContent = {
+        body: {
+          name: payload.fullName || payload.email,
+          intro: 'Chào mừng bạn đến với hệ thống VHHT!',
+          action: {
+            instructions: 'Hồ sơ tổ chức của bạn đã được ghi nhận.',
+            button: {
+              color: '#22BC66',
+              text: 'Truy cập Website VHHT',
+              link: process.env.FRONTEND_URL
+            }
+          },
+          outro: `Ban quản trị sẽ xem xét và xác minh hồ sơ tổ chức của bạn trong thời gian sớm nhất. 
+Bạn sẽ nhận được thông báo qua email khi tài khoản được kích hoạt.`
+        }
+      }
+
+      const mailBody = MailGenerator.generate(emailContent)
+
+      await transporter.sendMail({
+        from: process.env.EMAIL,
+        to: payload.email,
+        subject: 'Hồ sơ tổ chức VHHT đã được ghi nhận',
+        html: mailBody
+      })
+
+      return { message: 'Tổ chức đã đăng ký thành công. Vui lòng chờ xác minh từ quản trị viên.' }
+
+    } catch (error) {
+      console.error('❌ Lỗi đăng ký tổ chức:', error)
+      throw new Error('Đăng ký tổ chức thất bại.')
     }
   }
 
@@ -242,6 +304,26 @@ class UsersService {
     }
   }
 
+  async verifyOrg(user) {
+    try {
+      const org = await OrganizationInfo.findOne({user});
+
+      if (!org) {
+        throw new Error('Organization not found');
+      }
+
+      if (org.verified === true) {
+        return { alreadyVerified: true };
+      }
+
+      org.verified = true;
+      await org.save();
+
+      return { verifiedNow: true };
+    } catch (error) {
+      throw new Error(error.message || 'Invalid or expired token');
+    }
+  }
 }
 
 

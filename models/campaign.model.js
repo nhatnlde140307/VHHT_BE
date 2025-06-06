@@ -13,13 +13,12 @@ const phaseSchema = new Schema({
 const campaignSchema = new Schema({
   name: { type: String, required: true },
 
-  type: {
-    type: String,
-    enum: ["campaign", "event"],
-    required: true
-  },
-
   description: { type: String, required: true },
+
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
 
   location: {
     type: {
@@ -31,7 +30,7 @@ const campaignSchema = new Schema({
       type: [Number],
       required: true
     },
-    address:{
+    address: {
       type: String
     }
   },
@@ -62,6 +61,14 @@ const campaignSchema = new Schema({
       registeredAt: {
         type: Date,
         default: Date.now
+      },
+      evaluation: {
+        type: String,
+        enum: ['excellent', 'good', 'average', 'poor'],
+        default: 'average'
+      },
+      feedback: {
+        type: String
       }
     }
   ],
