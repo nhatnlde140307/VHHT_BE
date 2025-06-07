@@ -85,7 +85,7 @@ class UsersService {
 
     const newOrganizationInfo = new OrganizationInfo({
       name: payload.orgName,
-      user: user_id,
+      user: newUser._id,
       website: payload.website,
       description: payload.orgDescription,
       address: payload.address,

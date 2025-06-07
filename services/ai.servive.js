@@ -18,7 +18,7 @@ Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham
             const response = await axios.post(
                 'https://api.openai.com/v1/chat/completions',
                 {
-                    model: 'gpt-3.5-turbo',
+                    model: 'gpt-4o',
                     messages: [
                         { role: 'system', content: 'Bạn là một chuyên gia viết nội dung thiện nguyện chuyên nghiệp.' },
                         { role: 'user', content: prompt }
@@ -59,7 +59,7 @@ Email nên chân thành, khoảng 120–150 từ, dễ đọc, có thể kết t
             const response = await axios.post(
                 'https://api.openai.com/v1/chat/completions',
                 {
-                    model: 'gpt-3.5-turbo',
+                    model: 'gpt-4o',
                     messages: [
                         { role: 'system', content: 'Bạn là một chuyên gia viết email cảm ơn thiện nguyện bằng tiếng Việt.' },
                         { role: 'user', content: prompt }
