@@ -21,7 +21,7 @@ export const USER_MESSAGES = {
   DATE_OF_BIRTH_MUST_BE_ISO8601: 'Date of birth must be ISO 8601',
   USER_NOT_FOUND: ' User not found',
   LOGIN_SUCCESS: 'login success',
-  REGISTER_SUCCESS: 'register success',
+  REGISTER_SUCCESS: 'Registration successful. Welcome to VHHT! Please verify your email',
   ACCESS_TOKEN_IS_REQUESTED: 'Access token is requested',
   ACCESS_TOKEN_IS_INVALID: 'Access token is invalid',
   REFRESH_TOKEN_MUST_BE_A_STRING: 'Refresh token must be a string',

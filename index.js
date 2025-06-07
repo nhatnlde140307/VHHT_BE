@@ -6,6 +6,7 @@ import express from 'express'
 import mongoose from 'mongoose'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
+import morgan from 'morgan'
 import { config } from 'dotenv'
 //routes
 import usersRouter from './routes/users.routes.js';
@@ -21,6 +22,7 @@ config()
 const app = express()
 const port = 4000
 console.log('hello')
+app.use(morgan('dev'))
 
 databaseServices.connect()
 app.use(bodyParser.json())

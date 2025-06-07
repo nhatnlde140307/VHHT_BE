@@ -28,6 +28,7 @@
     "mailgen": "^2.0.29",
     "mongodb": "^6.16.0",
     "mongoose": "^8.15.1",
+    "morgan": "^1.10.0",
     "multer": "^2.0.0",
     "multer-storage-cloudinary": "^4.0.0",
     "node-fetch": "^3.3.2",
@@ -36,6 +37,7 @@
     "openai": "^5.1.0",
     "otp-generator": "^4.0.1",
     "pdf-lib": "^1.17.1",
+    "punycode": "^2.3.1",
     "qrcode": "^1.5.4"
   }
 }

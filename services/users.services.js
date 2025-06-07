@@ -1,76 +1,75 @@
-import { config } from 'dotenv'
-import { signToken } from '../utils/jwt.js'
-import { ObjectId } from 'mongodb'
-import jwt from 'jsonwebtoken'
-import User from '../models/users.model.js'
-import OrganizationInfo from '../models/organizationInfo.model.js'
-import { comparePassword, hashPassword } from '../utils/crypto.js'
-import { TokenType } from '../constants/enums.js'
-import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
-import mongoose from 'mongoose'
-config()
+import { config } from "dotenv";
+import { signToken } from "../utils/jwt.js";
+import { ObjectId } from "mongodb";
+import jwt from "jsonwebtoken";
+import User from "../models/users.model.js";
+import OrganizationInfo from "../models/organizationInfo.model.js";
+import { comparePassword, hashPassword } from "../utils/crypto.js";
+import { TokenType } from "../constants/enums.js";
+import { MailGenerator, transporter } from "../utils/nodemailerConfig.js";
+import mongoose from "mongoose";
+config();
 class UsersService {
   signAccessToken(user_id, role) {
-    console.log(user_id, role)
+    console.log(user_id, role);
     return signToken({
       payload: { user_id: user_id, role, token_type: TokenType.AccessToken },
-      privateKey: process.env.JWT_SECRET_ACCESS_TOKEN
-    })
+      privateKey: process.env.JWT_SECRET_ACCESS_TOKEN,
+    });
   }
 
   async register(payload) {
-    const user_id = new ObjectId()
+    const user_id = new ObjectId();
     const newUser = new User({
       ...payload,
       _id: user_id,
       password: hashPassword(payload.password).toString(),
-    })
+    });
 
     try {
-      const user = await newUser.save()
+      const user = await newUser.save();
 
       const verifyToken = jwt.sign(
         { userId: user_id.toString() },
         process.env.EMAIL_SECRET,
-        { expiresIn: '1h' }
-      )
+        { expiresIn: "1h" }
+      );
 
-      const verifyLink = `${process.env.BACKEND_URL}/users/verify-email?token=${verifyToken}`
+      const verifyLink = `${process.env.BACKEND_URL}/users/verify-email?token=${verifyToken}`;
 
       const emailContent = {
         body: {
           name: payload.name || payload.email,
-          intro: 'Welcome to VHHT! Please verify your email.',
+          intro: "Welcome to VHHT! Please verify your email.",
           action: {
-            instructions: 'Click below to verify your email:',
+            instructions: "Click below to verify your email:",
             button: {
-              color: '#22BC66',
-              text: 'Verify Email',
-              link: verifyLink
-            }
+              color: "#22BC66",
+              text: "Verify Email",
+              link: verifyLink,
+            },
           },
-          outro: 'If you did not register, ignore this email.'
-        }
-      }
+          outro: "If you did not register, ignore this email.",
+        },
+      };
 
-      const mailBody = MailGenerator.generate(emailContent)
+      const mailBody = MailGenerator.generate(emailContent);
 
       await transporter.sendMail({
         from: process.env.EMAIL,
         to: payload.email,
-        subject: 'Verify your VHHT account',
-        html: mailBody
-      })
+        subject: "Verify your VHHT account",
+        html: mailBody,
+      });
 
-      return { message: 'User registered. Please check email to verify.' }
-
+      return { message: "User registered. Please check email to verify." };
     } catch (error) {
-      throw new Error(error)
+      throw new Error(error);
     }
   }
 
   async registerOrg(payload) {
-    const user_id = new ObjectId()
+    const user_id = new ObjectId();
 
     const newUser = new User({
       _id: user_id,
@@ -79,9 +78,9 @@ class UsersService {
       phone: payload.phone,
       date_of_birth: payload.date_of_birth,
       password: hashPassword(payload.password).toString(),
-      role: 'organization',
-      status: 'inactive'
-    })
+      role: "organization",
+      status: "inactive",
+    });
 
     const newOrganizationInfo = new OrganizationInfo({
       name: payload.orgName,
@@ -89,227 +88,278 @@ class UsersService {
       website: payload.website,
       description: payload.orgDescription,
       address: payload.address,
-      logo: payload.logo
-    })
+      logo: payload.logo,
+    });
 
     try {
-      const user = await newUser.save()
-      const organizationInfo = await newOrganizationInfo.save()
+      const user = await newUser.save();
+      const organizationInfo = await newOrganizationInfo.save();
 
       const emailContent = {
         body: {
           name: payload.fullName || payload.email,
-          intro: 'Chào mừng bạn đến với hệ thống VHHT!',
+          intro: "Chào mừng bạn đến với hệ thống VHHT!",
           action: {
-            instructions: 'Hồ sơ tổ chức của bạn đã được ghi nhận.',
+            instructions: "Hồ sơ tổ chức của bạn đã được ghi nhận.",
             button: {
-              color: '#22BC66',
-              text: 'Truy cập Website VHHT',
-              link: process.env.FRONTEND_URL
-            }
+              color: "#22BC66",
+              text: "Truy cập Website VHHT",
+              link: process.env.FRONTEND_URL,
+            },
           },
           outro: `Ban quản trị sẽ xem xét và xác minh hồ sơ tổ chức của bạn trong thời gian sớm nhất. 
-Bạn sẽ nhận được thông báo qua email khi tài khoản được kích hoạt.`
-        }
-      }
+Bạn sẽ nhận được thông báo qua email khi tài khoản được kích hoạt.`,
+        },
+      };
 
-      const mailBody = MailGenerator.generate(emailContent)
+      const mailBody = MailGenerator.generate(emailContent);
 
       await transporter.sendMail({
         from: process.env.EMAIL,
         to: payload.email,
-        subject: 'Hồ sơ tổ chức VHHT đã được ghi nhận',
-        html: mailBody
-      })
+        subject: "Hồ sơ tổ chức VHHT đã được ghi nhận",
+        html: mailBody,
+      });
 
-      return { message: 'Tổ chức đã đăng ký thành công. Vui lòng chờ xác minh từ quản trị viên.' }
-
+      return {
+        message:
+          "Tổ chức đã đăng ký thành công. Vui lòng chờ xác minh từ quản trị viên.",
+      };
     } catch (error) {
-      console.error('❌ Lỗi đăng ký tổ chức:', error)
-      throw new Error('Đăng ký tổ chức thất bại.')
+      console.error("❌ Lỗi đăng ký tổ chức:", error);
+      throw new Error("Đăng ký tổ chức thất bại.");
     }
   }
 
   async checkExistEmail(email) {
-    const user = await User.findOne({ email })
-    return Boolean(user)
+    const user = await User.findOne({ email });
+    return Boolean(user);
   }
 
   async checkActivityUser(email) {
-    const user = await User.findOne({ email })
-    if (user?.status === 'inactive') {
-      return Boolean(true)
+    const user = await User.findOne({ email });
+    if (user?.status === "inactive") {
+      return Boolean(true);
     }
-    return Boolean(false)
+    return Boolean(false);
   }
 
   async login(payload) {
-    const user = { ...payload }
+    const user = { ...payload };
 
-    const { password: hashedPassword, role, _id, ...rest } = user._doc
+    const { password: hashedPassword, role, _id, ...rest } = user._doc;
 
-    const access_token = await this.signAccessToken(_id.toString(), role)
-    return { rest, access_token, role, _id }
+    const access_token = await this.signAccessToken(_id.toString(), role);
+    return { rest, access_token, role, _id };
   }
 
   async google(payload) {
     try {
-      const user = { ...payload }
-      const user1 = await User.findOne({ email: user.email })
+      const user = { ...payload };
+      const user1 = await User.findOne({ email: user.email });
       if (user1) {
-        const access_token = await this.signAccessToken(user1._id.toString(), user1.role)
+        const access_token = await this.signAccessToken(
+          user1._id.toString(),
+          user1.role
+        );
 
-        const { password: hashedPassword, ...rest } = user1._doc
-        console.log(access_token)
-        return { rest, access_token, _id: user._id }
+        const { password: hashedPassword, ...rest } = user1._doc;
+        console.log(access_token);
+        return { rest, access_token, _id: user._id };
       } else {
-        const generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
-        const hashedPassword1 = hashPassword(generatedPassword).toString()
+        const generatedPassword =
+          Math.random().toString(36).slice(-8) +
+          Math.random().toString(36).slice(-8);
+        const hashedPassword1 = hashPassword(generatedPassword).toString();
         const newUser = new User({
           fullname: user.fullname,
           email: user.email,
           password: hashedPassword1,
           profilePicture: user.photo,
-          phoneNumber: ''
-        })
-        await newUser.save()
-        const user2 = await User.findOne({ email: user.email })
-        const { _id: id } = user2._doc
-        const access_token = await this.signAccessToken(id.toString(), 'user')
-        console.log(access_token)
-        const { password: hashedPassword2, _id, ...rest } = newUser._doc
-        return { rest, access_token, _id }
+          phoneNumber: "",
+        });
+        await newUser.save();
+        const user2 = await User.findOne({ email: user.email });
+        const { _id: id } = user2._doc;
+        const access_token = await this.signAccessToken(id.toString(), "user");
+        console.log(access_token);
+        const { password: hashedPassword2, _id, ...rest } = newUser._doc;
+        return { rest, access_token, _id };
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   }
 
   async getUser(payload) {
-    const { user_id } = { ...payload }
+    const { user_id } = { ...payload };
 
     try {
-      const getUser = await User.findOne({ _id: user_id.toString() }).populate('driverLicenses')
-      return { getUser, user_id }
-    } catch (error) { }
+      const getUser = await User.findOne({ _id: user_id.toString() }).populate(
+        "driverLicenses"
+      );
+      return { getUser, user_id };
+    } catch (error) {}
   }
 
   async getUserByEmail(payload) {
-    const { email } = { ...payload }
-    console.log(email)
+    const { email } = { ...payload };
+    console.log(email);
 
     try {
-      const getUser = await User.findOne({ email: email.toString() })
-      return getUser
-    } catch (error) { }
+      const getUser = await User.findOne({ email: email.toString() });
+      return getUser;
+    } catch (error) {}
   }
 
   async updateUser(user_id, payload, payloadFile) {
     try {
       if (payloadFile && payloadFile.path) {
-        payload.profilePicture = payloadFile.path
+        payload.profilePicture = payloadFile.path;
       }
-      const updateUser = await User.findByIdAndUpdate(user_id.toString(), { ...payload }, { new: true })
+      const updateUser = await User.findByIdAndUpdate(
+        user_id.toString(),
+        { ...payload },
+        { new: true }
+      );
 
-      return { updateUser, user_id }
+      return { updateUser, user_id };
     } catch (error) {
-      throw Error(error)
+      throw Error(error);
     }
   }
 
-  async resetPassword(payload) {
-    try {
-      const user = await User.findOne({ email: payload.email })
+  async resetPassword(email) {
+    const user = await User.findOne({ email });
+    if (!user) throw new Error("User not found");
 
-      const resetPassword = await User.findByIdAndUpdate(
-        user._id.toString(),
-        { $set: { password: hashPassword(payload.password).toString() } },
-        { new: true }
-      )
-      return resetPassword
-    } catch (error) {
-      console.log(error)
-    }
+    const token = jwt.sign({ userId: user._id }, process.env.EMAIL_SECRET, {
+      expiresIn: "15m",
+    });
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    const emailContent = {
+      body: {
+        name: user.fullName || user.email,
+        intro: "You requested a password reset.",
+        action: {
+          instructions: "Click the button to reset your password:",
+          button: {
+            color: "#DC4D2F",
+            text: "Reset Password",
+            link: resetLink,
+          },
+        },
+        outro: "If you did not request this, just ignore this email.",
+      },
+    };
+
+    const mailBody = MailGenerator.generate(emailContent);
+
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: user.email,
+      subject: "Password Reset Request",
+      html: mailBody,
+    });
+
+    return { message: "Password reset link sent." };
+  }
+
+  async finalizePasswordReset(userId, newPassword) {
+    const user = await User.findById(userId);
+    if (!user) throw new Error("User not found");
+
+    user.password = hashPassword(newPassword).toString();
+    await user.save();
+
+    return "Password updated successfully";
   }
 
   async changePassword(user_id, oldPassword, newPassword) {
     try {
-
-      const user = await User.findById(user_id)
-      const isPasswordValid = await comparePassword(oldPassword, user.password)
+      const user = await User.findById(user_id);
+      const isPasswordValid = await comparePassword(oldPassword, user.password);
       if (!isPasswordValid) {
-        throw new Error('Invalid old password')
+        throw new Error("Invalid old password");
       }
 
-      user.password = hashPassword(newPassword).toString()
-      await user.save()
+      user.password = hashPassword(newPassword).toString();
+      await user.save();
 
-      const updatedUser = await User.findById(user_id)
+      const updatedUser = await User.findById(user_id);
 
-      return { message: 'Password changed successfully', user: updatedUser }
+      return { message: "Password changed successfully", user: updatedUser };
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   }
 
   async updateUser(user_id, payload, payloadFile) {
     try {
       if (payloadFile && payloadFile.path) {
-        payload.avatar = payloadFile.path
+        payload.avatar = payloadFile.path;
       }
-      const updateUser = await User.findByIdAndUpdate(user_id.toString(), { ...payload }, { new: true })
+      const updateUser = await User.findByIdAndUpdate(
+        user_id.toString(),
+        { ...payload },
+        { new: true }
+      );
 
-      return { updateUser, user_id }
+      return { updateUser, user_id };
     } catch (error) {
-      throw Error(error)
+      throw Error(error);
     }
   }
 
   async verifyEmail(token) {
     try {
-      const decoded = jwt.verify(token, process.env.EMAIL_SECRET)
-      const user = await User.findById(decoded.userId)
+      const decoded = jwt.verify(token, process.env.EMAIL_SECRET);
+      const user = await User.findById(decoded.userId);
 
-      if (!user) throw new Error('User not found')
-      if (user.status === 'active') return { alreadyVerified: true }
+      if (!user) throw new Error("User not found");
+      if (user.status === "active") return { alreadyVerified: true };
 
-      user.status = 'active'
-      await user.save()
+      user.status = "active";
+      await user.save();
 
-      const access_token = await this.signAccessToken(user._id.toString(), user.role)
+      const access_token = await this.signAccessToken(
+        user._id.toString(),
+        user.role
+      );
 
-      return { access_token }
+      return { access_token };
     } catch (error) {
-      throw new Error(error.message || 'Invalid or expired token')
+      throw new Error(error.message || "Invalid or expired token");
     }
   }
 
   async changePassword(user_id, oldPassword, newPassword) {
     try {
-      const user = await User.findById(user_id)
+      const user = await User.findById(user_id);
 
-      const isPasswordValid = await comparePassword(oldPassword, user.password)
+      const isPasswordValid = await comparePassword(oldPassword, user.password);
       if (!isPasswordValid) {
-        throw new Error('Invalid old password')
+        throw new Error("Invalid old password");
       }
 
-      user.password = hashPassword(newPassword).toString()
-      await user.save()
+      user.password = hashPassword(newPassword).toString();
+      await user.save();
 
-      const updatedUser = await User.findById(user_id)
+      const updatedUser = await User.findById(user_id);
 
-      return { message: 'Password changed successfully', user: updatedUser }
+      return { message: "Password changed successfully", user: updatedUser };
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   }
 
   async verifyOrg(user) {
     try {
-      const org = await OrganizationInfo.findOne({user});
+      const org = await OrganizationInfo.findOne({ user });
 
       if (!org) {
-        throw new Error('Organization not found');
+        throw new Error("Organization not found");
       }
 
       if (org.verified === true) {
@@ -321,11 +371,9 @@ Bạn sẽ nhận được thông báo qua email khi tài khoản được kích
 
       return { verifiedNow: true };
     } catch (error) {
-      throw new Error(error.message || 'Invalid or expired token');
+      throw new Error(error.message || "Invalid or expired token");
     }
   }
 }
 
-
-
-export default new UsersService()
+export default new UsersService();

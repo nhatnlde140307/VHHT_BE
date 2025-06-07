@@ -1,5 +1,6 @@
 import { USER_MESSAGES } from '../constants/messages.js'
 import usersService from '../services/users.services.js'
+import jwt from "jsonwebtoken";
 
 export const registerController = async (req, res, next) => {
   const result = await usersService.register(req.body)
@@ -107,3 +108,47 @@ export const changePasswordController = async (req, res, next) => {
     return res.status(500).json({ message: error.message })
   }
 }
+
+export const resetPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+
+  try {
+    const result = await usersService.resetPassword(email);
+
+    return res.status(200).json({
+      message: 'Password reset link has been sent to your email.',
+      info: result.message
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err?.message || 'Failed to send password reset link.'
+    });
+  }
+};
+
+
+export const resetPasswordHandler = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ message: 'Token and new password are required.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.EMAIL_SECRET);
+    const result = await usersService.finalizePasswordReset(decoded.userId, newPassword);
+
+    return res.status(200).json({
+      message: 'Password reset successful.',
+      info: result
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message || 'Invalid or expired token.'
+    });
+  }
+};
