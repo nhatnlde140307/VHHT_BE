@@ -6,7 +6,7 @@ config()
 
 class NewsPostService {
     async createNewPost(data) {
-        return await new NewsPost(data).save()
+        return await new NewsPost({ ...data, createdBy: userId }).save()
     }
 
     async getAll() {

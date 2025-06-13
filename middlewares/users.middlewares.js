@@ -362,3 +362,53 @@ export const organizationAndManagerValidator = validate(
     ['headers']
   )
 )
+
+export const AdminOrganizationAndManagerValidator = validate(
+  checkSchema(
+    {
+      authorization: {
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+            const access_token = (value || '').split(' ')[1]
+
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              })
+              const { role } = decoded_authorization
+              if (role === 'manager' || role === 'organization'|| role === 'manager' ) {
+                req.decoded_authorization = decoded_authorization
+              } else {
+                next(new ErrorWithStatus('You not admin,manager or organization', HTTP_STATUS.UNAUTHORIZED))
+              }
+              req.decoded_authorization = decoded_authorization
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize(error.message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+
+            return true
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+)

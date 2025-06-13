@@ -5,11 +5,12 @@ import { cloudinary } from '../utils/cloudinary.config.js'
 export const createNewsPost = async (req, res) => {
   try {
     const images = req.files?.map(file => file.path) || []
+    const userId = req.decoded_authorization.user_id;
     const data = {
       ...req.body,
       images,
     }
-    const news = await newsPostServices.createNewPost(data)
+    const news = await newsPostServices.createNewPost(data, userId)
     res.status(201).json(news)
   } catch (err) {
     res.status(500).json({ error: err.message })

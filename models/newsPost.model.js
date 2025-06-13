@@ -8,11 +8,15 @@ const newsSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true, 
+    required: true,
   },
   images: [String],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
 }, {
-  timestamps: true 
+  timestamps: true
 })
 const NewsPost = mongoose.model('NewsPost', newsSchema)
 

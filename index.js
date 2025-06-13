@@ -16,6 +16,7 @@ import uploadRouter from './routes/upload.routes.js'
 import newsPostRoutes from './routes/news.routes.js'
 import certificateRoutes from './routes/cerificate.routes.js'
 import donateRouter from './routes/donationCampaign.routes.js'
+import './models/category.model.js';
 
 config()
 const app = express()
