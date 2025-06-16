@@ -9,6 +9,7 @@ import cors from 'cors'
 import { config } from 'dotenv'
 //routes
 import usersRouter from './routes/users.routes.js';
+import commentRouter from './routes/comment.routes.js';
 import campaignRoutes from './routes/campaign.routes.js';
 import checkinRoutes from './routes/checkins.routes.js'
 import aiRouter from './routes/ai.routes.js'
@@ -48,6 +49,7 @@ app.use('/cloud', uploadRouter)
 app.use('/news', newsPostRoutes)
 app.use('/certificate', certificateRoutes)
 app.use('/donate', donateRouter)
+app.use('/comment', commentRouter)
 
 app.use(defaultErrorHandler)
 app.listen(port, () => {
