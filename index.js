@@ -7,38 +7,46 @@ import mongoose from 'mongoose'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import { config } from 'dotenv'
-//routes
-import usersRouter from './routes/users.routes.js';
-import commentRouter from './routes/comment.routes.js';
-import campaignRoutes from './routes/campaign.routes.js';
+import http from 'http' 
+import { initSocket } from './socket/socket.js'
+
+// routes
+import usersRouter from './routes/users.routes.js'
+import commentRouter from './routes/comment.routes.js'
+import campaignRoutes from './routes/campaign.routes.js'
 import checkinRoutes from './routes/checkins.routes.js'
 import aiRouter from './routes/ai.routes.js'
 import uploadRouter from './routes/upload.routes.js'
 import newsPostRoutes from './routes/news.routes.js'
 import certificateRoutes from './routes/cerificate.routes.js'
 import donateRouter from './routes/donationCampaign.routes.js'
-import './models/category.model.js';
+import notiRouter from './routes/notification.routes.js'
+import './models/category.model.js'
 
 config()
+
 const app = express()
+const server = http.createServer(app) // ✅ tạo server để dùng socket
 const port = 4000
-console.log('hello')
 
 databaseServices.connect()
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
-  }));
-  
+  origin: process.env.FRONTEND_URL,
+  credentials: true,
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+}))
+
 app.use(express.json())
 app.use(cookieParser())
 
+// 🔌 socket setup
+initSocket(server)
+
 app.get('/', async (req, res) => {
-    res.status(200).json("Hello to Rental Car API");
+  res.status(200).json("Hello to Rental Car API")
 })
 
 app.use('/users', usersRouter)
@@ -50,8 +58,10 @@ app.use('/news', newsPostRoutes)
 app.use('/certificate', certificateRoutes)
 app.use('/donate', donateRouter)
 app.use('/comment', commentRouter)
+app.use('/notification', notiRouter)
 
 app.use(defaultErrorHandler)
-app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`)
+
+server.listen(port, () => {
+  console.log(`Server is running on port ${port}`)
 })

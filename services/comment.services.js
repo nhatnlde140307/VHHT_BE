@@ -1,5 +1,9 @@
 import { config } from 'dotenv'
 import Comment from '../models/comment.model.js';
+import User from '../models/users.model.js';
+import NewsPost from '../models/newsPost.model.js';
+import Campaign from '../models/campaign.model.js';
+import DonationCampaign from '../models/donationCampaign.model.js';
 
 config()
 
@@ -62,6 +66,79 @@ class CommentServices {
         await Comment.deleteMany({ parentComment: comment._id });
         await comment.deleteOne();
     }
+
+    async handleCommentNotifications({
+        refType,
+        refId,
+        parentComment,
+        commenterId
+    }) {
+        const io = getIO();
+        const user = await User.findById(commenterId).lean();
+        const commenterName = user?.fullName || 'Người dùng';
+
+        // send to reply
+        if (parentComment) {
+            const parent = await Comment.findById(parentComment);
+            const repliedUserId = parent?.createdBy?.toString();
+
+            if (repliedUserId && repliedUserId !== commenterId) {
+                const noti = await Notification.create({
+                    recipient: repliedUserId,
+                    title: 'Bình luận của bạn được phản hồi',
+                    content: `${commenterName} đã trả lời bình luận của bạn.`,
+                    link: `/${refType}/${refId}#${parentComment}`,
+                    type: 'comment_reply'
+                });
+
+                io.to(repliedUserId).emit('notification', {
+                    title: noti.title,
+                    content: noti.content,
+                    link: noti.link,
+                    type: noti.type
+                });
+            }
+        }
+
+        // send to org
+        else {
+            let creatorId = null;
+            let contentType = '';
+            const link = `/${refType}/${refId}`;
+
+            if (refType === 'campaign') {
+                const campaign = await Campaign.findById(refId);
+                creatorId = campaign?.createBy?.toString();
+                contentType = 'chiến dịch';
+            } else if (refType === 'news') {
+                const news = await NewsPost.findById(refId);
+                creatorId = news?.createdBy?.toString();
+                contentType = 'bài viết';
+            } else if (refType === 'donation') {
+                const donation = await DonationCampaign.findById(refId);
+                creatorId = donation?.createBy?.toString();
+                contentType = 'chiến dịch quyên góp';
+            }
+
+            if (creatorId && creatorId !== commenterId) {
+                const noti = await Notification.create({
+                    recipient: creatorId,
+                    title: `Bạn nhận được bình luận mới`,
+                    content: `${commenterName} đã bình luận vào ${contentType} của bạn.`,
+                    link,
+                    type: 'new_comment'
+                });
+
+                io.to(creatorId).emit('notification', {
+                    title: noti.title,
+                    content: noti.content,
+                    link: noti.link,
+                    type: noti.type
+                });
+            }
+        }
+    }
+
 }
 
 export default new CommentServices();

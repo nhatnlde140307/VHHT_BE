@@ -9,6 +9,13 @@ export const createComment = async (req, res) => {
             content, refType, refId, parentComment, createdBy: userId
         });
 
+        await CommentServices.handleCommentNotifications({
+            refType,
+            refId,
+            parentComment,
+            commenterId: userId,
+        });
+
         res.status(201).json(comment);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -28,15 +35,15 @@ export const getComments = async (req, res) => {
 };
 
 export const deleteComment = async (req, res) => {
-  try {
-    const commentId = req.params.id;
+    try {
+        const commentId = req.params.id;
 
-    const userId = req.decoded_authorization.user_id;
-    const role = req.decoded_authorization.role;
+        const userId = req.decoded_authorization.user_id;
+        const role = req.decoded_authorization.role;
 
-    await CommentServices.deleteComment(commentId, userId, role);
-    res.json({ message: 'Đã xóa comment' });
-  } catch (err) {
-    res.status(err.statusCode || 500).json({ message: err.message });
-  }
+        await CommentServices.deleteComment(commentId, userId, role);
+        res.json({ message: 'Đã xóa comment' });
+    } catch (err) {
+        res.status(err.statusCode || 500).json({ message: err.message });
+    }
 };
