@@ -5,7 +5,7 @@ import { cloudinary } from '../utils/cloudinary.config.js'
 config()
 
 class NewsPostService {
-    async createNewPost(data) {
+    async createNewPost(data, userId) {
         return await new NewsPost({ ...data, createdBy: userId }).save()
     }
 
