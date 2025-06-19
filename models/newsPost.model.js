@@ -6,15 +6,29 @@ const newsSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  type: {
+    type: String,
+    enum: ['news', 'forum']
+  },
   content: {
     type: String,
     required: true,
   },
   images: [String],
+  tags: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category'
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  commentsCount: {
+    type: Number,
+    default: 0,
+  },
+  upvotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  downvotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, {
   timestamps: true
 })

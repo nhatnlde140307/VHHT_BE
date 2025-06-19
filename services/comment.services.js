@@ -4,7 +4,7 @@ import User from '../models/users.model.js';
 import NewsPost from '../models/newsPost.model.js';
 import Campaign from '../models/campaign.model.js';
 import DonationCampaign from '../models/donationCampaign.model.js';
-
+import { getIO } from '../socket/socket.js';
 config()
 
 class CommentServices {
@@ -139,6 +139,54 @@ class CommentServices {
         }
     }
 
+    async upvote(commentId, userId) {
+        const comment = await Comment.findById(commentId);
+        if (!comment) throw new Error('Comment not found');
+
+        const hasUpvoted = comment.upvotes.includes(userId);
+
+        if (hasUpvoted) {
+            comment.upvotes.pull(userId);
+        } else {
+            comment.upvotes.push(userId);
+            comment.downvotes.pull(userId);
+        }
+
+        await comment.save();
+
+        return {
+            message: hasUpvoted ? 'Upvote removed' : 'Comment upvoted',
+            upvotes: comment.upvotes.length,
+            downvotes: comment.downvotes.length,
+            votes: comment.upvotes.length - comment.downvotes.length
+        };
+    }
+
+    async downvote(commentId, userId) {
+        const comment = await Comment.findById(commentId);
+        if (!comment) throw new Error('Comment not found');
+
+        comment.upvotes = comment.upvotes || [];
+        comment.downvotes = comment.downvotes || [];
+
+        const hasDownvoted = comment.downvotes.includes(userId);
+
+        if (hasDownvoted) {
+            comment.downvotes.pull(userId);
+        } else {
+            comment.downvotes.push(userId);
+            comment.upvotes.pull(userId); 
+        }
+
+        await comment.save();
+
+        return {
+            message: hasDownvoted ? 'Downvote removed' : 'Comment downvoted',
+            upvotes: comment.upvotes.length,
+            downvotes: comment.downvotes.length,
+            votes: comment.upvotes.length - comment.downvotes.length
+        };
+    }
 }
 
 export default new CommentServices();

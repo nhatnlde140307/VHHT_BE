@@ -406,98 +406,67 @@ class CampaignServices {
             //  Gửi email nếu cần
             if (mail) {
                 try {
+                    const recipientName = v.user.fullName || v.user.email;
+
+                    let introText = '';
+                    let action = null;
+                    let subject = '';
+
                     if (isPoor) {
-                        const message = `
-Chào bạn,
+                        subject = `Kết quả tham gia chiến dịch "${campaign.name}"`;
+                        introText = `
+                                Chào ${recipientName},
 
-Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}". Chúng tôi ghi nhận sự hiện diện của bạn trong suốt chương trình.
+                            Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}". Dù bạn đã có mặt xuyên suốt chương trình, tuy nhiên kết quả đánh giá không đủ điều kiện để được cấp chứng chỉ hoàn thành.
 
-Dựa trên đánh giá từ ban tổ chức, rất tiếc bạn **không đủ điều kiện để được cấp chứng chỉ hoàn thành**.
+                            Hy vọng bạn sẽ tiếp tục đồng hành và đóng góp tích cực hơn trong các chiến dịch tiếp theo.
 
-Hy vọng trong tương lai bạn sẽ có thêm cơ hội cải thiện và đóng góp tích cực hơn.
-
-Trân trọng,  
-Đội ngũ VHHT
-          `.trim();
-
-                        const mailBody = MailGenerator.generate({
-                            body: {
-                                name: v.user.fullName || v.user.email,
-                                intro: message
-                            }
-                        });
-
-                        await transporter.sendMail({
-                            from: process.env.EMAIL,
-                            to: v.user.email,
-                            subject: `Kết quả tham gia chiến dịch "${campaign.name}"`,
-                            html: mailBody
-                        });
+                                        Trân trọng,
+                                        Đội ngũ VHHT
+                                            `.trim();
                     } else {
-                        // Tone theo evaluation
-                        let tone;
+                        subject = `Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}"`;
                         switch (v.evaluation) {
                             case 'excellent':
-                                tone = 'nồng nhiệt, cảm động, truyền cảm hứng';
+                                introText = `Bạn được đánh giá là một tình nguyện viên xuất sắc. Chúng tôi vô cùng trân trọng sự đóng góp của bạn trong chiến dịch "${campaign.name}".`;
                                 break;
                             case 'good':
-                                tone = 'tích cực, thân thiện';
+                                introText = `Bạn đã hoàn thành nhiệm vụ rất tốt trong chiến dịch "${campaign.name}". Cảm ơn bạn đã đồng hành.`;
                                 break;
                             case 'average':
-                                tone = 'lịch sự, nhẹ nhàng';
+                                introText = `Bạn đã hoàn thành nhiệm vụ ở mức khá trong chiến dịch "${campaign.name}". Mong bạn tiếp tục phát triển hơn nữa.`;
                                 break;
                             default:
-                                tone = 'thân thiện';
+                                introText = `Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}".`;
                         }
 
-                        let evaluationText;
-                        switch (v.evaluation) {
-                            case 'excellent':
-                                evaluationText = 'Bạn được đánh giá là một tình nguyện viên xuất sắc.';
-                                break;
-                            case 'good':
-                                evaluationText = 'Bạn đã hoàn thành nhiệm vụ rất tốt trong chiến dịch.';
-                                break;
-                            case 'average':
-                                evaluationText = 'Bạn đã hoàn thành nhiệm vụ ở mức khá.';
-                                break;
-                            default:
-                                evaluationText = '';
+                        if (fileUrl) {
+                            action = {
+                                instructions: 'Bạn có thể tải chứng chỉ tham gia tại liên kết sau:',
+                                button: {
+                                    color: '#22BC66',
+                                    text: 'Xem chứng chỉ',
+                                    link: fileUrl
+                                }
+                            };
                         }
-                        const emailContentText = await aiServive.generateThankYouEmail({
-                            recipientName: v.user.fullName || v.user.email,
-                            campaignName: campaign.name,
-                            contributionDetails: 'đồng hành và hỗ trợ trong chiến dịch',
-                            senderName: 'Đội ngũ VHHT',
-                            tone,
-                            evaluationText 
-                        });
-
-                        const mailBody = MailGenerator.generate({
-                            body: {
-                                name: v.user.fullName || v.user.email,
-                                intro: emailContentText,
-                                ...(fileUrl && {
-                                    action: {
-                                        instructions: 'Bạn có thể tải chứng chỉ tham gia tại liên kết sau:',
-                                        button: {
-                                            color: '#22BC66',
-                                            text: 'Xem chứng chỉ',
-                                            link: fileUrl
-                                        }
-                                    }
-                                }),
-                                outro: 'Trân trọng cảm ơn bạn một lần nữa!'
-                            }
-                        });
-
-                        await transporter.sendMail({
-                            from: process.env.EMAIL,
-                            to: v.user.email,
-                            subject: `Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}"`,
-                            html: mailBody
-                        });
                     }
+
+                    const mailBody = MailGenerator.generate({
+                        body: {
+                            name: recipientName,
+                            intro: introText,
+                            ...(action && { action }),
+                            outro: 'Trân trọng cảm ơn bạn một lần nữa!'
+                        }
+                    });
+
+                    await transporter.sendMail({
+                        from: process.env.EMAIL,
+                        to: v.user.email,
+                        subject,
+                        html: mailBody
+                    });
                 } catch (emailErr) {
                     console.error(`❌ Gửi email thất bại cho ${v.user.email}:`, emailErr.message);
                 }

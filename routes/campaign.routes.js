@@ -1,7 +1,7 @@
 import express from 'express'
 import { wrapRequestHandler } from '../utils/handlers.js'
 import {
-  adminValidator,accessTokenValidator, loginValidator
+  adminValidator,accessTokenValidator,organizationAndManagerValidator
 } from '../middlewares/users.middlewares.js'
 import { getListCampaigns,getCampaignVolunteers,
         startCampaignHandler,createCampaign,
@@ -11,7 +11,7 @@ import { getListCampaigns,getCampaignVolunteers,
 
 const campaignRoutes = express.Router()
 
-campaignRoutes.post('/', adminValidator,wrapRequestHandler(createCampaign))
+campaignRoutes.post('/', organizationAndManagerValidator,wrapRequestHandler(createCampaign))
 
 campaignRoutes.get('/',wrapRequestHandler(getListCampaigns))
 

@@ -24,7 +24,17 @@ const commentSchema = new mongoose.Schema({
   refId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true
-  }
+  },
+  upvotes: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'User',
+    default: [], // ✅ RẤT QUAN TRỌNG
+  },
+  downvotes: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'User',
+    default: [], // ✅ RẤT QUAN TRỌNG
+  },
 }, {
   timestamps: true
 })
