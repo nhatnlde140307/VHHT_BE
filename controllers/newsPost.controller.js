@@ -85,3 +85,27 @@ export const updateNews = async (req, res) => {
     res.status(500).json({ error: err.message })
   }
 }
+
+export const upvoteNewsPost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.decoded_authorization.user_id;
+
+    const result = await newsPostServices.upvote(postId, userId);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const downvoteNewsPost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.decoded_authorization.user_id;
+
+    const result = await newsPostServices.downvote(postId, userId);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

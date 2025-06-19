@@ -14,6 +14,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
+    //console.log(file)
     const isPdf = file.mimetype === 'application/pdf'
 
     let folder = 'VHHT/others'
@@ -36,6 +37,7 @@ const storage = new CloudinaryStorage({
         break
     }
 
+    //console.log(folder, file.originalname)
     return {
       folder,
       resource_type: isPdf ? 'raw' : 'image',

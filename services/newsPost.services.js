@@ -26,9 +26,61 @@ class NewsPostService {
 
         return await NewsPost.findByIdAndDelete(id)
     }
-     async update(id, data) {
-    return await NewsPost.findByIdAndUpdate(id, data, { new: true })
-  }
+    async update(id, data) {
+        return await NewsPost.findByIdAndUpdate(id, data, { new: true })
+    }
+
+    async upvote(postId, userId) {
+        const post = await NewsPost.findById(postId);
+        if (!post) throw new Error('News post not found');
+
+        post.upvotes = post.upvotes || [];
+        post.downvotes = post.downvotes || [];
+
+        const hasUpvoted = post.upvotes.includes(userId);
+
+        if (hasUpvoted) {
+            post.upvotes.pull(userId);
+        } else {
+            post.upvotes.push(userId);
+            post.downvotes.pull(userId);
+        }
+
+        await post.save();
+
+        return {
+            message: hasUpvoted ? 'Upvote removed' : 'Post upvoted',
+            upvotes: post.upvotes.length,
+            downvotes: post.downvotes.length,
+            votes: post.upvotes.length - post.downvotes.length
+        };
+    }
+
+    async downvote(postId, userId) {
+        return NewsPost.findById(postId).then(news => {
+            if (!news) throw new Error('News not found');
+
+            news.upvotes = news.upvotes || [];
+            news.downvotes = news.downvotes || [];
+
+            const hasDownvoted = news.downvotes.includes(userId);
+
+            if (hasDownvoted) {
+                news.downvotes.pull(userId); // toggle off
+            } else {
+                news.downvotes.push(userId);
+                news.upvotes.pull(userId); // remove upvote if exists
+            }
+
+            return news.save().then(() => ({
+                message: hasDownvoted ? 'Downvote removed' : 'News downvoted',
+                upvotes: news.upvotes.length,
+                downvotes: news.downvotes.length,
+                votes: news.upvotes.length - news.downvotes.length
+            }));
+        });
+    }
+
 
 }
 

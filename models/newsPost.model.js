@@ -27,8 +27,16 @@ const newsSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  upvotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  downvotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  upvotes: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'User',
+    default: []
+  },
+  downvotes: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'User',
+    default: []
+  }
 }, {
   timestamps: true
 })

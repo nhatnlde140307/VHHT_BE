@@ -14,4 +14,5 @@ commentRouter.get('/', wrapRequestHandler(getComments));
 commentRouter.post('/:id/upvote', accessTokenValidator, wrapRequestHandler(upvoteComment));
 
 commentRouter.post('/:id/downvote', accessTokenValidator, wrapRequestHandler(downvoteComment));
+
 export default commentRouter;
