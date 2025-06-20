@@ -21,8 +21,7 @@ import newsPostRoutes from './routes/news.routes.js'
 import certificateRoutes from './routes/cerificate.routes.js'
 import donateRouter from './routes/donationCampaign.routes.js'
 import notiRouter from './routes/notification.routes.js'
-import './models/category.model.js'
-
+import paymentsRoutes from './routes/payment.routes.js'
 config()
 
 const app = express()
@@ -50,6 +49,7 @@ app.get('/', async (req, res) => {
 })
 
 app.use('/users', usersRouter)
+app.use('/payments', paymentsRoutes)
 app.use('/campaigns', campaignRoutes)
 app.use('/checkins', checkinRoutes)
 app.use('/ai', aiRouter)

@@ -1,7 +1,7 @@
 import { config } from 'dotenv'
 import NewsPost from '../models/newsPost.model.js'
 import { cloudinary } from '../utils/cloudinary.config.js'
-
+import Category from '../models/category.model.js'
 config()
 
 class NewsPostService {
@@ -10,7 +10,7 @@ class NewsPostService {
     }
 
     async getAll() {
-        return await NewsPost.find().sort({ createdAt: -1 })
+        return await NewsPost.find().sort({ createdAt: -1 }).populate('Category').populate('User')
     }
     async getById(id) {
         return await NewsPost.findById(id)

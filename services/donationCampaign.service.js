@@ -4,31 +4,31 @@ import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import DonorProfile from '../models/donorProfile.model.js';
 import User from '../models/users.model.js';
 import OrganizationInfo from '../models/organizationInfo.model.js';
+import DonationTransaction from '../models/donationTransaction.model.js';
 
 config();
 
 class DonationServices {
-    async create(data, userId) {
+    async create(images, data, userId) {
         const {
             title,
             description,
             goalAmount,
             thumbnail,
-            images = [],
             tags = [],
             createdBy
         } = data;
 
-        if (!title || !description || !goalAmount || !createdBy) {
+        if (!title || !description || !goalAmount) {
             throw new Error('Thiếu trường bắt buộc');
         }
 
         const newCampaign = new DonationCampaign({
             title,
             description,
-            goalAmount,
+            goalAmount: Number(goalAmount),
             thumbnail,
-            images,
+            images: images,
             tags,
             createdBy: userId,
             currentAmount: 0
@@ -147,6 +147,24 @@ class DonationServices {
                 limit: Number(limit),
                 total
             }
+        };
+    }
+
+    async getbyId(id) {
+        const campaign = await DonationCampaign.findById(id)
+            .populate('createdBy', 'fullName avatar') 
+            .populate('tags'); 
+
+        if (!campaign) return null;
+
+        const transactions = await DonationTransaction.find({
+            donationCampaignId: id,
+            paymentStatus: 'success' 
+        }).sort({ createdAt: -1 });
+
+        return {
+            campaign,
+            transactions
         };
     }
 }

@@ -11,10 +11,26 @@ export const getDonationCampaigns = async (req, res) => {
   }
 };
 
+export const getDonateById = async (req, res) => {
+  try {
+    const result = await DonationServices.getbyId(req.params.id);
+
+    if (!result) {
+      return res.status(404).json({ message: 'Không tìm thấy chiến dịch quyên góp' });
+    }
+
+    res.status(200).json({ data: result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+};
+
 export const createDonationCampaign = async (req, res) => {
   try {
     const userId = req.decoded_authorization.user_id;
-    const campaign = await DonationServices.create(req.body, userId);
+    const images = req.files?.map(file => file.path) || []
+    const campaign = await DonationServices.create(images,req.body, userId);
 
     res.status(201).json({
       message: 'Tạo chiến dịch quyên góp thành công',

@@ -1,3 +1,4 @@
+//donationTransaction.model.js
 import mongoose from 'mongoose';
 
 const donationTransactionSchema = new mongoose.Schema({
@@ -36,8 +37,9 @@ const donationTransactionSchema = new mongoose.Schema({
 
   paymentMethod: {
     type: String,
-    enum: ['Momo', 'VNPay', 'Cash'],
-    required: true
+    enum: ['Momo', 'ZaloPay', 'Cash'],
+    required: true,
+    default : 'ZaloPay'
   },
 
   paymentStatus: {

@@ -1,7 +1,10 @@
 import { config } from 'dotenv'
 import axios from 'axios'
 import { AI_EXENTD_MESSAGE } from '../constants/messages.js'
-
+import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+import { transporter } from '../utils/nodemailerConfig.js';
 config()
 
 class AiService {
@@ -40,6 +43,7 @@ Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham
             return AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
         }
     }
+
     async generateThankYouEmail({ recipientName,
         campaignName,
         contributionDetails,
@@ -80,6 +84,31 @@ Email nên chân thành, khoảng 120–150 từ, dễ đọc, có thể kết t
             console.error('AI Error (Email):', error?.response?.data || error.message)
             return 'Cảm ơn bạn đã tham gia chiến dịch.'
         }
+    }
+
+    async sendDonationSuccessEmail(toEmail, data, attachmentPath = null) {
+        const templatePath = path.join(process.cwd(), 'templates', 'donation-bill-email.html');
+        let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+
+        htmlTemplate = htmlTemplate
+            .replace('Nguyễn Văn A', data.donorName || 'Ẩn danh')
+            .replace('200.000 VND', `${data.amount.toLocaleString()} VND`)
+            .replace('ZLP_24062025_123456', data.transactionCode)
+            .replace('Ủng hộ lũ lụt miền Trung', data.campaignTitle)
+            .replace('20/06/2025 11:50:00', data.date);
+
+        const mailOptions = {
+            from: `"ZaloPay Xác nhận giao dịch" <${process.env.ZALOPAY_EMAIL}>`,
+            to: toEmail,
+            subject: 'Xác nhận giao dịch ủng hộ chiến dịch thành công',
+            html: htmlTemplate,
+            attachments: attachmentPath ? [{
+                filename: 'bien-nhan.pdf',
+                path: attachmentPath
+            }] : []
+        };
+
+        await transporter.sendMail(mailOptions);
     }
 }
 

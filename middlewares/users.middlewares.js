@@ -414,3 +414,36 @@ export const AdminOrganizationAndManagerValidator = validate(
     }
   )
 )
+
+export const optionalAuth = validate(
+  checkSchema(
+    {
+      authorization: {
+        optional: true, // ✅ Cho phép không có
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) return true; // 🟢 Nếu không có Authorization thì bỏ qua (guest)
+
+            const access_token = (value || '').split(' ')[1];
+            if (!access_token) return true;
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              });
+              req.decoded_authorization = decoded_authorization;
+            } catch (error) {
+              // Token có nhưng sai → vẫn bỏ qua, coi là guest
+              console.warn("⚠️ Token không hợp lệ:", error.message);
+            }
+
+            return true;
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+);

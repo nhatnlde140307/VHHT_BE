@@ -54,10 +54,10 @@ const donationCampaignSchema = new mongoose.Schema({
         enum: ['draft', 'active', 'completed'],
         default: 'draft'
     },
+    
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
     }
 
 }, { timestamps: true });
