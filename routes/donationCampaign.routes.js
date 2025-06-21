@@ -9,7 +9,8 @@ donateRouter.get('/', getDonationCampaigns);
 
 donateRouter.get('/:id', getDonateById);
 
-donateRouter.post('/',organizationAndManagerValidator,uploadCloud.array('images', 5), wrapRequestHandler(createDonationCampaign));
+donateRouter.post('/',organizationAndManagerValidator,
+    uploadCloud.array('images', 5), wrapRequestHandler(createDonationCampaign));
 
 donateRouter.put('/:id/approve',managerValidator, wrapRequestHandler(approveDonationCampaign));
 

@@ -10,7 +10,7 @@ class NewsPostService {
     }
 
     async getAll() {
-        return await NewsPost.find().sort({ createdAt: -1 }).populate('Category').populate('User')
+        return await NewsPost.find().sort({ createdAt: -1 }).populate('tags').populate('User')
     }
     async getById(id) {
         return await NewsPost.findById(id)
