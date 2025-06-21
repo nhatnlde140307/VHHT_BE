@@ -5,6 +5,8 @@ import NewsPost from '../models/newsPost.model.js';
 import Campaign from '../models/campaign.model.js';
 import DonationCampaign from '../models/donationCampaign.model.js';
 import { getIO } from '../socket/socket.js';
+import Notification from '../models/notification.model.js';
+
 config()
 
 class CommentServices {
