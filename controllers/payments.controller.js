@@ -100,109 +100,136 @@ export const callbackZalopay = async (req, res) => {
   try {
     const dataStr = req.body.data;
     const reqMac = req.body.mac;
-
     const mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
 
     if (reqMac !== mac) {
-      result.return_code = -1;
-      result.return_message = "MAC không hợp lệ";
-    } else {
-      const dataJson = JSON.parse(dataStr);
-      const app_trans_id = dataJson["app_trans_id"];
-      const embed_data = JSON.parse(dataJson.embed_data);
-      const donationCampaignId = embed_data.donationCampaignId;
-      const campaign = await DonationCampaign.findById(donationCampaignId);
+      return res.json({
+        return_code: -1,
+        return_message: "MAC không hợp lệ",
+      });
+    }
 
-      const updated = await DonationTransaction.findOneAndUpdate(
-        { transactionCode: app_trans_id },
-        { paymentStatus: "success" },
-        { new: true }
-      );
+    const dataJson = JSON.parse(dataStr);
+    const {
+      app_trans_id,
+      app_user,
+      amount,
+      embed_data,
+      app_time,
+    } = dataJson;
+    const embed = JSON.parse(embed_data);
+    const campaignId = embed.donationCampaignId;
+    const userId = embed.userId;
 
-      await DonationCampaign.findByIdAndUpdate(
-        donationCampaignId,
-        { $inc: { currentAmount: dataJson['amount'] } },
-        { new: true }
-      );
+    const io = getIO();
 
-      if (updated) {
-        console.log("✅ Đã cập nhật đơn ủng hộ:", app_trans_id);
-        result.return_code = 1;
-        result.return_message = "Thành công";
-        const room = `donate-campaign-${donationCampaignId}`;
+    const campaign = await DonationCampaign.findById(campaignId);
+    if (!campaign) throw new Error("Không tìm thấy chiến dịch");
 
-        const io = getIO();
-        io.to(room).emit("new_donation", {
-          transaction: updated,
-          currentAmount: dataJson.amount,
-          campaignId: donationCampaignId,
+    const updatedTransaction = await DonationTransaction.findOneAndUpdate(
+      { transactionCode: app_trans_id },
+      { paymentStatus: "success" },
+      { new: true }
+    );
+
+    await DonationCampaign.findByIdAndUpdate(
+      campaignId,
+      { $inc: { currentAmount: amount } },
+      { new: true }
+    );
+
+    if (updatedTransaction) {
+      // 🔄 Emit update to donation room
+      const room = `donate-campaign-${campaignId}`;
+      io.to(room).emit("new_donation", {
+        transaction: updatedTransaction,
+        currentAmount: amount,
+        campaignId: campaignId,
+      });
+
+      // 📩 Notify new donation
+      const notifyDonation = await Notification.create({
+        recipient: campaign.createdBy,
+        title: `Có người vừa ủng hộ chiến dịch ${campaign.title}!`,
+        content: `${app_user} vừa ủng hộ ${(+amount).toLocaleString()} VNĐ`,
+        link: ``,
+        type: "donation",
+      });
+      io.to(notifyDonation.recipient.toString()).emit("notification", notifyDonation);
+
+      // 🧠 Update donor profile
+      await updateDonorProfile(userId, campaign, amount, app_trans_id, app_time);
+
+      // 🎯 Mục tiêu đạt được
+      const refreshedCampaign = await DonationCampaign.findById(campaignId);
+      if (refreshedCampaign.currentAmount >= refreshedCampaign.goalAmount) {
+        const goalReachedNoti = await Notification.create({
+          recipient: refreshedCampaign.createdBy,
+          title: `Chúc mừng, chiến dịch ${refreshedCampaign.title} đã đạt mục tiêu gọi vốn 🎉!`,
+          content: `Chiến dịch ${refreshedCampaign.title} đã đạt mức ủng hộ kì vọng ${refreshedCampaign.goalAmount.toLocaleString()} VNĐ`,
+          link: ``,
+          type: "donation",
         });
-
-        const noti = await Notification.create({
-                    recipient: campaign.createdBy,
-                    title: `Có người vừa ủng hộ chiến dịch ${campaign.title}!`,
-                    content: `${dataJson.app_user} vừa ủng hộ ${dataJson.amount.toLocaleString()} VNĐ`,
-                    link: ``,
-                    type: 'donation'
-          });
-        io.to(noti.recipient.toString()).emit('notification', {
-                    title: noti.title,
-                    content: noti.content,
-                    link: noti.link,
-                    type: noti.type
-        });
-
-        try {
-          const userId = embed_data.userId;
-          const user = await User.findById(userId);
-          const campaign = await DonationCampaign.findById(donationCampaignId);
-          let donorProfile = await DonorProfile.findOne({ userId: user._id });
-
-          const donateAmount = dataJson.amount;
-
-          if (!donorProfile) {
-            donorProfile = await usersServices.createDonorProfile(user);
-          } else {
-          }
-
-          donorProfile.totalDonated += donateAmount;
-
-          const existingIndex = donorProfile.donatedCampaigns.findIndex(
-            (item) => item.campaignId.toString() === campaign._id.toString()
-          );
-
-          if (existingIndex !== -1) {
-            donorProfile.donatedCampaigns[existingIndex].totalAmount += donateAmount;
-          } else {
-            donorProfile.donatedCampaigns.push({
-              campaignId: campaign._id,
-              totalAmount: donateAmount,
-            });
-          }
-
-          await donorProfile.save();
-
-          await aiServive.sendDonationSuccessEmail(user.email, {
-            donorName: user.fullName,
-            amount: dataJson.amount,
-            transactionCode: dataJson.app_trans_id,
-            campaignTitle: campaign.title,
-            date: new Date(dataJson.app_time).toLocaleString('vi-VN')
-          });
-
-        } catch (mailErr) {
-          console.error("❌ Lỗi khi gửi email xác nhận:", mailErr.message);
-        }
-
-      } else {
-        result.return_code = 0;
-        result.return_message = "Không tìm thấy đơn giao dịch";
+        io.to(goalReachedNoti.recipient.toString()).emit("notification", goalReachedNoti);
       }
+
+      result = {
+        return_code: 1,
+        return_message: "Thành công",
+      };
+    } else {
+      result = {
+        return_code: 0,
+        return_message: "Không tìm thấy đơn giao dịch",
+      };
     }
   } catch (error) {
-    result.return_code = 0;
-    result.return_message = error.message;
+    console.error("❌ Lỗi callbackZalopay:", error);
+    result = {
+      return_code: 0,
+      return_message: error.message,
+    };
   }
 
-  res.json(result);
+  return res.json(result);
+};
+
+// 🧠 Cập nhật DonorProfile và gửi email xác nhận
+const updateDonorProfile = async (userId, campaign, amount, transactionCode, timestamp) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    let donorProfile = await DonorProfile.findOne({ userId: user._id });
+    if (!donorProfile) {
+      donorProfile = await usersServices.createDonorProfile(user);
+    }
+
+    donorProfile.totalDonated += amount;
+
+    const campaignIndex = donorProfile.donatedCampaigns.findIndex(
+      (item) => item.campaignId.toString() === campaign._id.toString()
+    );
+
+    if (campaignIndex !== -1) {
+      donorProfile.donatedCampaigns[campaignIndex].totalAmount += amount;
+    } else {
+      donorProfile.donatedCampaigns.push({
+        campaignId: campaign._id,
+        totalAmount: amount,
+      });
+    }
+
+    await donorProfile.save();
+
+    await aiService.sendDonationSuccessEmail(user.email, {
+      donorName: user.fullName,
+      amount: amount,
+      transactionCode: transactionCode,
+      campaignTitle: campaign.title,
+      date: new Date(timestamp).toLocaleString("vi-VN"),
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi cập nhật DonorProfile hoặc gửi email:", err.message);
+  }
 };
