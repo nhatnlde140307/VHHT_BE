@@ -9,7 +9,10 @@ import { config } from 'dotenv'
 import { getIO } from '../socket/socket.js';
 import User from '../models/users.model.js';
 import aiServive from '../services/ai.servive.js';
-
+import usersServices from '../services/users.services.js';
+import DonorProfile from '../models/donorProfile.model.js'
+import Notification from '../models/notification.model.js';
+import { log } from 'console';
 config()
 
 export const createOrderPaymentZaloPayController = async (req, res) => {
@@ -108,8 +111,8 @@ export const callbackZalopay = async (req, res) => {
       const app_trans_id = dataJson["app_trans_id"];
       const embed_data = JSON.parse(dataJson.embed_data);
       const donationCampaignId = embed_data.donationCampaignId;
+      const campaign = await DonationCampaign.findById(donationCampaignId);
 
-      // ✅ Cập nhật trạng thái đơn giao dịch
       const updated = await DonationTransaction.findOneAndUpdate(
         { transactionCode: app_trans_id },
         { paymentStatus: "success" },
@@ -128,7 +131,6 @@ export const callbackZalopay = async (req, res) => {
         result.return_message = "Thành công";
         const room = `donate-campaign-${donationCampaignId}`;
 
-        // Emit socket tới frontend
         const io = getIO();
         io.to(room).emit("new_donation", {
           transaction: updated,
@@ -136,23 +138,61 @@ export const callbackZalopay = async (req, res) => {
           campaignId: donationCampaignId,
         });
 
-          try {
-            const userId = embed_data.userId;
-            const user = await User.findById(userId);
-            const campaign = await DonationCampaign.findById(donationCampaignId);
+        const noti = await Notification.create({
+                    recipient: campaign.createdBy,
+                    title: `Có người vừa ủng hộ chiến dịch ${campaign.title}!`,
+                    content: `${dataJson.app_user} vừa ủng hộ ${dataJson.amount.toLocaleString()} VNĐ`,
+                    link: ``,
+                    type: 'donation'
+          });
+        io.to(noti.recipient.toString()).emit('notification', {
+                    title: noti.title,
+                    content: noti.content,
+                    link: noti.link,
+                    type: noti.type
+        });
 
-            await aiServive.sendDonationSuccessEmail(user.email, {
-              donorName: user.fullName,
-              amount: dataJson.amount,
-              transactionCode: dataJson.app_trans_id,
-              campaignTitle: campaign.title,
-              date: new Date(dataJson.app_time).toLocaleString('vi-VN')  
-            });
+        try {
+          const userId = embed_data.userId;
+          const user = await User.findById(userId);
+          const campaign = await DonationCampaign.findById(donationCampaignId);
+          let donorProfile = await DonorProfile.findOne({ userId: user._id });
 
-            console.log(`✅ Đã gửi email xác nhận đến ${user.email}`);
-          } catch (mailErr) {
-            console.error("❌ Lỗi khi gửi email xác nhận:", mailErr.message);
+          const donateAmount = dataJson.amount;
+
+          if (!donorProfile) {
+            donorProfile = await usersServices.createDonorProfile(user);
+          } else {
           }
+
+          donorProfile.totalDonated += donateAmount;
+
+          const existingIndex = donorProfile.donatedCampaigns.findIndex(
+            (item) => item.campaignId.toString() === campaign._id.toString()
+          );
+
+          if (existingIndex !== -1) {
+            donorProfile.donatedCampaigns[existingIndex].totalAmount += donateAmount;
+          } else {
+            donorProfile.donatedCampaigns.push({
+              campaignId: campaign._id,
+              totalAmount: donateAmount,
+            });
+          }
+
+          await donorProfile.save();
+
+          await aiServive.sendDonationSuccessEmail(user.email, {
+            donorName: user.fullName,
+            amount: dataJson.amount,
+            transactionCode: dataJson.app_trans_id,
+            campaignTitle: campaign.title,
+            date: new Date(dataJson.app_time).toLocaleString('vi-VN')
+          });
+
+        } catch (mailErr) {
+          console.error("❌ Lỗi khi gửi email xác nhận:", mailErr.message);
+        }
 
       } else {
         result.return_code = 0;

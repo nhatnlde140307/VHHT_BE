@@ -15,7 +15,7 @@ export function initSocket(server) {
 
     if (userId) {
       socket.join(userId);
-      console.log(`🔵 Joined user room: ${userId}`);
+      console.log(`🟡 Joined user room: ${userId}`);
     }
 
     if (campaignId) {

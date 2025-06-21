@@ -53,6 +53,9 @@ const userSchema = new mongoose.Schema({
   date_of_birth: {
     type: Date,
     required: true
+  },
+  bio: {
+    type:String
   }
 
 }, { timestamps: true });

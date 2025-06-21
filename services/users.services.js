@@ -7,6 +7,7 @@ import OrganizationInfo from '../models/organizationInfo.model.js'
 import { comparePassword, hashPassword } from '../utils/crypto.js'
 import { TokenType } from '../constants/enums.js'
 import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
+import DonorProfile from '../models/donorProfile.model.js'
 import mongoose from 'mongoose'
 config()
 class UsersService {
@@ -306,7 +307,7 @@ Bạn sẽ nhận được thông báo qua email khi tài khoản được kích
 
   async verifyOrg(user) {
     try {
-      const org = await OrganizationInfo.findOne({user});
+      const org = await OrganizationInfo.findOne({ user });
 
       if (!org) {
         throw new Error('Organization not found');
@@ -324,6 +325,28 @@ Bạn sẽ nhận được thông báo qua email khi tài khoản được kích
       throw new Error(error.message || 'Invalid or expired token');
     }
   }
+
+  async createDonorProfile(user) {
+  try {
+    const exists = await DonorProfile.findOne({ userId: user._id });
+    if (exists) {
+      throw new Error("Donor profile already exists");
+    }
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const donorProfile = await DonorProfile.create({
+      userId: user._id,
+      donatedCampaigns: []
+    });
+
+    return donorProfile;
+  } catch (error) {
+    throw new Error(error.message || "Invalid or expired token");
+  }
+}
 }
 
 

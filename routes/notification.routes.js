@@ -7,7 +7,7 @@ const notiRouter = express.Router();
 
 //notiRouter.use(accessTokenValidator); 
 
-notiRouter.get('/', getMyNotifications);               
+notiRouter.get('/', accessTokenValidator,getMyNotifications);               
 notiRouter.patch('/:id/read', markAsRead);   
 notiRouter.get('/test', sendTestNotification);
 

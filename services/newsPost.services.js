@@ -10,7 +10,7 @@ class NewsPostService {
     }
 
     async getAll() {
-        return await NewsPost.find().sort({ createdAt: -1 }).populate('tags').populate('User')
+        return await NewsPost.find().sort({ createdAt: -1 }).populate('tags').populate('createdBy')
     }
     async getById(id) {
         return await NewsPost.findById(id)
@@ -66,10 +66,10 @@ class NewsPostService {
             const hasDownvoted = news.downvotes.includes(userId);
 
             if (hasDownvoted) {
-                news.downvotes.pull(userId); // toggle off
+                news.downvotes.pull(userId); 
             } else {
                 news.downvotes.push(userId);
-                news.upvotes.pull(userId); // remove upvote if exists
+                news.upvotes.pull(userId); 
             }
 
             return news.save().then(() => ({

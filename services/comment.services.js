@@ -91,7 +91,7 @@ class CommentServices {
                     type: 'comment_reply'
                 });
 
-                io.to(repliedUserId).emit('notification', {
+                io.to(repliedUserId.toString()).emit('notification', {
                     title: noti.title,
                     content: noti.content,
                     link: noti.link,
