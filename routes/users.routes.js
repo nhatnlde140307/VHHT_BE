@@ -4,33 +4,21 @@ import {
 } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
 import {
-  registerController,verifyEmail,updateUserController,loginController
+  registerController,verifyEmail,updateUserController,approvedOrganization,loginController,googleController,changePasswordController,registerOrganizationController
 } from '../controllers/users.controller.js'
 
 import uploadCloud from '../utils/cloudinary.config.js'
 const usersRoutes = express.Router()
 
-/**
- * Description: Register a user
- * Path: /register
- * Method: POST
- * Body:{ email: string, password: string, confirm_password: string, date_of_birth: ISO8601}
- */
+
 usersRoutes.post('/register', registerValidator, wrapRequestHandler(registerController))
 
-/**
- * Description: Login
- * Path: /login
- * Method: POST
- * Body:{ email: string, password: string}
- */
+usersRoutes.post('/register-organization', registerValidator, wrapRequestHandler(registerOrganizationController))
+
+usersRoutes.put('/approved-organization/:userId', wrapRequestHandler(approvedOrganization))
+
 usersRoutes.post('/login', loginValidator, wrapRequestHandler(loginController))
 
-/**
- * Description: Verify new user
- * Path: /verify-email
- * Method: GET
- */
 usersRoutes.get('/verify-email', wrapRequestHandler(verifyEmail))
 
 usersRoutes.put(
@@ -39,6 +27,10 @@ usersRoutes.put(
   accessTokenValidator,                    
   wrapRequestHandler(updateUserController) 
 )
+
+usersRoutes.post('/google', wrapRequestHandler(googleController))
+
+usersRoutes.put('/change-password', accessTokenValidator, wrapRequestHandler(changePasswordController))
 
 
 export default usersRoutes

@@ -6,9 +6,30 @@ export const registerController = async (req, res, next) => {
 
   return res.json({
     message: USER_MESSAGES.REGISTER_SUCCESS,
-    access_token: result.access_token.toString(),
     result: result.user,
     id: result.user_id
+  })
+}
+
+export const registerOrganizationController = async (req, res, next) => {
+  const result = await usersService.registerOrg(req.body)
+
+  return res.json({
+    message: 'Regist success, please be patient when we identifier your organization',
+    result: result.user,
+    id: result.user_id
+  })
+}
+
+export const googleController = async (req, res, next) => {
+  console.log(req.body)
+  const result = await usersService.google(req.body)
+
+  return res.json({
+    message: USER_MESSAGES.LOGIN_SUCCESS,
+    access_token: result?.access_token?.toString(),
+    result: result.rest,
+    id: result?._id?.toString()
   })
 }
 
@@ -41,14 +62,48 @@ export const verifyEmail = async (req, res) => {
     const result = await usersService.verifyEmail(token)
 
     if (result.alreadyVerified) {
-      return res.status(200).json({ message: 'Email already verified' })
+      return res.status(200).json({ message: USER_MESSAGES.EMAIL_VERIFY_SUCCESS })
     }
 
     res.status(200).json({
-      message: 'Email verified successfully',
+      message: USER_MESSAGES.EMAIL_VERIFY_SUCCESS,
       access_token: result.access_token
     })
   } catch (err) {
     res.status(400).json({ message: err.message })
+  }
+}
+
+export const approvedOrganization = async (req, res) => {
+  const user = req.params.userId
+
+  try {
+    const result = await usersService.verifyOrg(user)
+
+    if (result.alreadyVerified) {
+      return res.status(200).json({ message: "USER_MESSAGES.ORG_VERIFY_SUCCESS" })
+    }
+
+    res.status(200).json({
+      message:  "USER_MESSAGES.ORG_VERIFY_SUCCESS",
+    })
+  } catch (err) {
+    res.status(400).json({ message: err.message })
+  }
+}
+
+export const changePasswordController = async (req, res, next) => {
+  const { oldPassword, newPassword } = req.body
+  const userId = req.decoded_authorization.user_id 
+
+  try {
+    const result = await usersService.changePassword(userId, oldPassword, newPassword)
+
+    return res.json({
+      message: USER_MESSAGES.CHANGE_PASSWORD_SUCCESS,
+      result: result.user
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
   }
 }

@@ -3,9 +3,11 @@ import { signToken } from '../utils/jwt.js'
 import { ObjectId } from 'mongodb'
 import jwt from 'jsonwebtoken'
 import User from '../models/users.model.js'
+import OrganizationInfo from '../models/organizationInfo.model.js'
 import { comparePassword, hashPassword } from '../utils/crypto.js'
 import { TokenType } from '../constants/enums.js'
-import {MailGenerator,transporter} from '../utils/nodemailerConfig.js'
+import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
+import DonorProfile from '../models/donorProfile.model.js'
 import mongoose from 'mongoose'
 config()
 class UsersService {
@@ -34,7 +36,7 @@ class UsersService {
         { expiresIn: '1h' }
       )
 
-      const verifyLink = `http://localhost:4000/users/verify-email?token=${verifyToken}`
+      const verifyLink = `${process.env.BACKEND_URL}/users/verify-email?token=${verifyToken}`
 
       const emailContent = {
         body: {
@@ -65,6 +67,67 @@ class UsersService {
 
     } catch (error) {
       throw new Error(error)
+    }
+  }
+
+  async registerOrg(payload) {
+    const user_id = new ObjectId()
+
+    const newUser = new User({
+      _id: user_id,
+      fullName: payload.fullName,
+      email: payload.email,
+      phone: payload.phone,
+      date_of_birth: payload.date_of_birth,
+      password: hashPassword(payload.password).toString(),
+      role: 'organization',
+      status: 'inactive'
+    })
+
+    const newOrganizationInfo = new OrganizationInfo({
+      name: payload.orgName,
+      user: newUser._id,
+      website: payload.website,
+      description: payload.orgDescription,
+      address: payload.address,
+      logo: payload.logo
+    })
+
+    try {
+      const user = await newUser.save()
+      const organizationInfo = await newOrganizationInfo.save()
+
+      const emailContent = {
+        body: {
+          name: payload.fullName || payload.email,
+          intro: 'Chào mừng bạn đến với hệ thống VHHT!',
+          action: {
+            instructions: 'Hồ sơ tổ chức của bạn đã được ghi nhận.',
+            button: {
+              color: '#22BC66',
+              text: 'Truy cập Website VHHT',
+              link: process.env.FRONTEND_URL
+            }
+          },
+          outro: `Ban quản trị sẽ xem xét và xác minh hồ sơ tổ chức của bạn trong thời gian sớm nhất. 
+Bạn sẽ nhận được thông báo qua email khi tài khoản được kích hoạt.`
+        }
+      }
+
+      const mailBody = MailGenerator.generate(emailContent)
+
+      await transporter.sendMail({
+        from: process.env.EMAIL,
+        to: payload.email,
+        subject: 'Hồ sơ tổ chức VHHT đã được ghi nhận',
+        html: mailBody
+      })
+
+      return { message: 'Tổ chức đã đăng ký thành công. Vui lòng chờ xác minh từ quản trị viên.' }
+
+    } catch (error) {
+      console.error('❌ Lỗi đăng ký tổ chức:', error)
+      throw new Error('Đăng ký tổ chức thất bại.')
     }
   }
 
@@ -172,7 +235,7 @@ class UsersService {
 
   async changePassword(user_id, oldPassword, newPassword) {
     try {
-  
+
       const user = await User.findById(user_id)
       const isPasswordValid = await comparePassword(oldPassword, user.password)
       if (!isPasswordValid) {
@@ -190,7 +253,7 @@ class UsersService {
     }
   }
 
-async updateUser(user_id, payload, payloadFile) {
+  async updateUser(user_id, payload, payloadFile) {
     try {
       if (payloadFile && payloadFile.path) {
         payload.avatar = payloadFile.path
@@ -203,7 +266,7 @@ async updateUser(user_id, payload, payloadFile) {
     }
   }
 
-async verifyEmail(token) {
+  async verifyEmail(token) {
     try {
       const decoded = jwt.verify(token, process.env.EMAIL_SECRET)
       const user = await User.findById(decoded.userId)
@@ -217,12 +280,73 @@ async verifyEmail(token) {
       const access_token = await this.signAccessToken(user._id.toString(), user.role)
 
       return { access_token }
-      console.log(access_token)
     } catch (error) {
       throw new Error(error.message || 'Invalid or expired token')
     }
   }
 
+  async changePassword(user_id, oldPassword, newPassword) {
+    try {
+      const user = await User.findById(user_id)
+
+      const isPasswordValid = await comparePassword(oldPassword, user.password)
+      if (!isPasswordValid) {
+        throw new Error('Invalid old password')
+      }
+
+      user.password = hashPassword(newPassword).toString()
+      await user.save()
+
+      const updatedUser = await User.findById(user_id)
+
+      return { message: 'Password changed successfully', user: updatedUser }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  async verifyOrg(user) {
+    try {
+      const org = await OrganizationInfo.findOne({ user });
+
+      if (!org) {
+        throw new Error('Organization not found');
+      }
+
+      if (org.verified === true) {
+        return { alreadyVerified: true };
+      }
+
+      org.verified = true;
+      await org.save();
+
+      return { verifiedNow: true };
+    } catch (error) {
+      throw new Error(error.message || 'Invalid or expired token');
+    }
+  }
+
+  async createDonorProfile(user) {
+  try {
+    const exists = await DonorProfile.findOne({ userId: user._id });
+    if (exists) {
+      throw new Error("Donor profile already exists");
+    }
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const donorProfile = await DonorProfile.create({
+      userId: user._id,
+      donatedCampaigns: []
+    });
+
+    return donorProfile;
+  } catch (error) {
+    throw new Error(error.message || "Invalid or expired token");
+  }
+}
 }
 
 

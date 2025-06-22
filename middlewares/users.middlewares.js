@@ -1,15 +1,19 @@
 import { validate } from '../utils/validator.js'
 import { checkSchema } from 'express-validator'
 import { USER_MESSAGES } from '../constants/messages.js'
+import { HTTP_STATUS } from '../constants/httpStatus.js'
 import usersService from '../services/users.services.js'
 import User from '../models/users.model.js'
+import { ErrorWithStatus } from '../models/error.js'
 import { hashPassword } from '../utils/crypto.js'
+import { verifyToken } from '../utils/jwt.js'
 
 import pkg from 'lodash'
 const { capitalize } = pkg
 import pkg1 from 'jsonwebtoken'
 const { JsonWebTokenError } = pkg1
 import { config } from 'dotenv'
+import jwt from 'jsonwebtoken'
 
 config()
 
@@ -101,7 +105,7 @@ export const loginValidator = validate(
         },
         isStrongPassword: {
           options: {
-           minLength: 6,
+            minLength: 6,
             minLowercase: 1
           },
           errorMessage: USER_MESSAGES.PASSWORD_MUST_BE_STRONG
@@ -158,3 +162,288 @@ export const accessTokenValidator = validate(
     ['headers']
   )
 )
+
+export const adminValidator = validate(
+  checkSchema(
+    {
+      authorization: {
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+
+            const access_token = (value || '').split(' ')[1];
+
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              });
+
+              const { role } = decoded_authorization;
+              if (role !== 'admin') {
+                throw new ErrorWithStatus('You are not admin', HTTP_STATUS.UNAUTHORIZED);
+              }
+
+              req.decoded_authorization = decoded_authorization;
+              return true; // ✅ Trả về true để tiếp tục validate
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize(error.message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+)
+
+export const managerValidator = validate(
+  checkSchema(
+    {
+      authorization: {
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+
+            const access_token = (value || '').split(' ')[1];
+
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              });
+
+              const { role } = decoded_authorization;
+              if (role !== 'manager') {
+                throw new ErrorWithStatus('You are not manager', HTTP_STATUS.UNAUTHORIZED);
+              }
+
+              req.decoded_authorization = decoded_authorization;
+              return true; 
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize(error.message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+)
+
+export const organizationValidator = validate(
+  checkSchema(
+    {
+      authorization: {
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+
+            const access_token = (value || '').split(' ')[1];
+
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              });
+
+              const { role } = decoded_authorization;
+              if (role !== 'organization') {
+                throw new ErrorWithStatus('You are not manager', HTTP_STATUS.UNAUTHORIZED);
+              }
+
+              req.decoded_authorization = decoded_authorization;
+              return true; 
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize(error.message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              });
+            }
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+)
+
+export const organizationAndManagerValidator = validate(
+  checkSchema(
+    {
+      authorization: {
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+            const access_token = (value || '').split(' ')[1]
+
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              })
+              const { role } = decoded_authorization
+              if (role === 'manager' || role === 'organization') {
+                req.decoded_authorization = decoded_authorization
+              } else {
+                next(new ErrorWithStatus('You not manager or organization', HTTP_STATUS.UNAUTHORIZED))
+              }
+              req.decoded_authorization = decoded_authorization
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize(error.message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+
+            return true
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+)
+
+export const AdminOrganizationAndManagerValidator = validate(
+  checkSchema(
+    {
+      authorization: {
+        in: ['headers'],
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+
+            const access_token = value.split(' ')[1]
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              })
+
+              const { role } = decoded_authorization
+              if (!['manager', 'organization', 'admin'].includes(role)) {
+                throw new ErrorWithStatus({
+                  message: 'You are not admin, manager or organization',
+                  status: HTTP_STATUS.UNAUTHORIZED
+                })
+              }
+
+              req.decoded_authorization = decoded_authorization
+              return true
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize(error.message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+          }
+        }
+      }
+    }
+  )
+)
+
+export const optionalAuth = validate(
+  checkSchema(
+    {
+      authorization: {
+        optional: true, // ✅ Cho phép không có
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            if (!value) return true; // 🟢 Nếu không có Authorization thì bỏ qua (guest)
+
+            const access_token = (value || '').split(' ')[1];
+            if (!access_token) return true;
+
+            try {
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
+              });
+              req.decoded_authorization = decoded_authorization;
+            } catch (error) {
+              // Token có nhưng sai → vẫn bỏ qua, coi là guest
+              console.warn("⚠️ Token không hợp lệ:", error.message);
+            }
+
+            return true;
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+);

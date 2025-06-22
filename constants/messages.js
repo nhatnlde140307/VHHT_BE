@@ -42,23 +42,33 @@ export const USER_MESSAGES = {
   RESET_PASSWORD_SUCCESS: 'Reset password successfully',
   GET_PROFILE_SUCCESS: 'Get profile successfully',
   UPDATE_PROFILE_SUCCESS: 'Update profile successfully',
-  UPLOAD_IMAGE_SUCCESS: 'Upload image successfully'
+  UPLOAD_IMAGE_SUCCESS: 'Upload image successfully',
+  ACCEPT_CAMPAIGN_SUCCESS: 'Accepted volunteer to campaign',
+  CHANGE_PASSWORD_SUCCESS:'Change password successfully'
 }
 
-export const BRAND_MESSAGE = {
-  CREATE_BRAND_SUCCESS: 'Create brand successfullY'
-}
 export const MODEL_MESSAGE = {
   CREATE_MODEL_SUCCESS: 'Create model successfullY'
 }
-export const CARS_MESSAGE = {
-  GET_CAR_SUCCESS: 'GetList car successfully',
-  CREATE_CAR_SUCCESS: 'Create car successfully',
-  UPDATE_CAR_SUCCESS: 'Update car successfully',
-  GET_CAR_SUCCESS: 'Get car successfully',
-  GET_CARS_SUCCESS: 'Get list cars successfully',
-  UPDATE_RATING_SUCCESS: 'Update rating successfully'
+export const CAMPAIGN_MESSAGE = {
+  NOT_FOUND: 'Campaign not exist',
+  GET_CAMPAIGN_SUCCESS: 'GetList campaign successfully',
+  CREATE_CAMPAIGN_SUCCESS: 'Create campaign successfully',
+  UPDATE_CAMPAIGN_SUCCESS: 'Update campaign successfully',
+  GET_CAMPAIGN_SUCCESS: 'Get campaign successfully',
+  GET_CAMPAIGN_SUCCESS: 'Get list campaign successfully',
+  UPDATE_CAMPAIGN_SUCCESS: 'Update rating successfully',
+  DELETE_CAMPAIGN_SUCCESS: 'Delete campaign successfully',
+  START_CAMPAIGN_SUCCESS: "Campaign is started"
 }
-export const COUPON_MESSAGE = {
-  DELETE_COUPON_SUCCESS: 'delete successfullY'
+
+export const AI_EXENTD_MESSAGE = {
+    DEFAULT_TONE_AI: 'truyền cảm hứng',
+    ERROR_IN_CONTENT: "An error occur when generate content from ai"
 }
+
+export const CERTIFICATE_MESSAGE = {
+    GET_BY_CAMPAIGN_SUCCESS: "Get certificate by campaignId success",
+    GET_BY_CAMPAIGN_FAIL: "Get certificate by campaignId fail"
+}
+
