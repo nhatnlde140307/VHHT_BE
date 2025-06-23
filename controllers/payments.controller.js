@@ -56,7 +56,7 @@ export const createOrderPaymentZaloPayController = async (req, res) => {
       amount: totalAmount,
       description: `Ủng hộ chiến dịch #${donationCampaignId || 'Chung'}`,
       bank_code: "",
-      callback_url: `${process.env.NGROK_4000}/payments/zalopay_payment_url/callback`,
+      callback_url: `${process.env.NGROK_4000}/thankyou`,
     };
 
     const data = `${config.app_id}|${order.app_trans_id}|${order.app_user}|${order.amount}|${order.app_time}|${order.embed_data}|${order.item}`;
