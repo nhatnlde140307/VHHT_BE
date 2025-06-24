@@ -56,7 +56,13 @@ const userSchema = new mongoose.Schema({
   },
   bio: {
     type:String
-  }
+  },
+managedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User', 
+  default: null
+},
+communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'CommuneInfo' },
 
 }, { timestamps: true });
 

@@ -3,11 +3,11 @@ import { signToken } from '../utils/jwt.js'
 import { ObjectId } from 'mongodb'
 import jwt from 'jsonwebtoken'
 import User from '../models/users.model.js'
-import OrganizationInfo from '../models/organizationInfo.model.js'
 import { comparePassword, hashPassword } from '../utils/crypto.js'
 import { TokenType } from '../constants/enums.js'
 import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import DonorProfile from '../models/donorProfile.model.js'
+import { CommuneModel } from '../models/commune.model.js'
 import mongoose from 'mongoose'
 config()
 class UsersService {
@@ -21,10 +21,15 @@ class UsersService {
 
   async register(payload) {
     const user_id = new ObjectId()
+
+    // Convert communeId (nếu có) sang ObjectId
+    const communeObjectId = payload.communeId ? new ObjectId(payload.communeId) : null
+
     const newUser = new User({
       ...payload,
       _id: user_id,
       password: hashPassword(payload.password).toString(),
+      communeId: communeObjectId, // thêm dòng này
     })
 
     try {
@@ -70,71 +75,157 @@ class UsersService {
     }
   }
 
-  async registerOrg(payload) {
-    const user_id = new ObjectId()
-
-    const newUser = new User({
-      _id: user_id,
-      fullName: payload.fullName,
-      email: payload.email,
-      phone: payload.phone,
-      date_of_birth: payload.date_of_birth,
-      password: hashPassword(payload.password).toString(),
-      role: 'organization',
-      status: 'inactive'
-    })
-
-    const newOrganizationInfo = new OrganizationInfo({
-      name: payload.orgName,
-      user: newUser._id,
-      website: payload.website,
-      description: payload.orgDescription,
-      address: payload.address,
-      logo: payload.logo
-    })
-
-    try {
-      const user = await newUser.save()
-      const organizationInfo = await newOrganizationInfo.save()
-
-      const emailContent = {
-        body: {
-          name: payload.fullName || payload.email,
-          intro: 'Chào mừng bạn đến với hệ thống VHHT!',
-          action: {
-            instructions: 'Hồ sơ tổ chức của bạn đã được ghi nhận.',
-            button: {
-              color: '#22BC66',
-              text: 'Truy cập Website VHHT',
-              link: process.env.FRONTEND_URL
-            }
-          },
-          outro: `Ban quản trị sẽ xem xét và xác minh hồ sơ tổ chức của bạn trong thời gian sớm nhất. 
-Bạn sẽ nhận được thông báo qua email khi tài khoản được kích hoạt.`
-        }
-      }
-
-      const mailBody = MailGenerator.generate(emailContent)
-
-      await transporter.sendMail({
-        from: process.env.EMAIL,
-        to: payload.email,
-        subject: 'Hồ sơ tổ chức VHHT đã được ghi nhận',
-        html: mailBody
-      })
-
-      return { message: 'Tổ chức đã đăng ký thành công. Vui lòng chờ xác minh từ quản trị viên.' }
-
-    } catch (error) {
-      console.error('❌ Lỗi đăng ký tổ chức:', error)
-      throw new Error('Đăng ký tổ chức thất bại.')
+  async createManager({ fullName, email, password, phone, date_of_birth, communeId }) {
+    const objectId = new mongoose.Types.ObjectId(communeId)
+    const commune = await CommuneModel.findById(objectId)
+    console.log(commune)
+    if (!commune) {
+      throw new Error('Xã không tồn tại trong hệ thống')
     }
+
+    const existing = await User.findOne({ email })
+    if (existing) {
+      throw new Error('Email đã được sử dụng')
+    }
+
+    const hashed = await hashPassword(password)
+
+    const manager = new User({
+      fullName,
+      email,
+      phone,
+      password: hashed,
+      date_of_birth,
+      role: 'manager',
+      status: 'active',
+      communeId: objectId
+    })
+
+    await manager.save()
+    return manager
+  }
+
+  async getUsers({ role, district, province }) {
+    const userFilter = {}
+    if (role) userFilter.role = role
+
+    if (district || province) {
+      const communeFilter = {}
+      if (district) communeFilter.district = district
+      if (province) communeFilter.province = province
+
+      const communes = await CommuneModel.find(communeFilter).select('_id')
+      const communeIds = communes.map(c => c._id)
+      userFilter.communeId = { $in: communeIds }
+    }
+
+    const users = await User.find(userFilter)
+      .populate('communeId')
+      .select('-password')
+
+    return users
+  }
+
+  async getUserById(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('ID không hợp lệ')
+    }
+
+    const user = await User.findById(userId)
+      .populate('communeId')
+      .select('-password')
+
+    return user
+  }
+
+  async getUserProfile(userId) {
+    const user = await User.findById(userId)
+      .populate('communeId')  // trả kèm địa lý nếu có
+      .select('-password')     // không trả về password
+
+    if (!user) {
+      throw new Error('Người dùng không tồn tại')
+    }
+
+    return user
+  }
+
+  async disableUser(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('ID không hợp lệ')
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      throw new Error('Người dùng không tồn tại')
+    }
+
+    if (user.status === 'inactive') {
+      throw new Error('Tài khoản đã bị vô hiệu hóa trước đó')
+    }
+
+    user.status = 'inactive'
+    await user.save()
+    return user
+  }
+
+  async createOrganization({ managerId, fullName, email, phone, password, date_of_birth }) {
+    if (!mongoose.Types.ObjectId.isValid(managerId)) {
+      throw new Error('ID manager không hợp lệ')
+    }
+
+    const manager = await User.findById(managerId)
+    if (!manager || manager.role !== 'manager') {
+      throw new Error('Manager không tồn tại hoặc không hợp lệ')
+    }
+
+    const existing = await User.findOne({ email })
+    if (existing) {
+      throw new Error('Email đã được sử dụng')
+    }
+
+    const hashedPassword = await hashPassword(password)
+
+    const newOrg = new User({
+      fullName,
+      email,
+      phone,
+      password: hashedPassword,
+      date_of_birth,
+      role: 'organization',
+      status: 'active',
+      communeId: manager.communeId,
+      managedBy: manager._id
+    })
+
+    await newOrg.save()
+    return newOrg.toObject({ getters: true, virtuals: false })
+  }
+
+  async enableUser(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('ID không hợp lệ')
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      throw new Error('Người dùng không tồn tại')
+    }
+
+    if (user.status === 'active') {
+      throw new Error('Tài khoản đã đang ở trạng thái active')
+    }
+
+    user.status = 'active'
+    await user.save()
+    return user
   }
 
   async checkExistEmail(email) {
     const user = await User.findOne({ email })
     return Boolean(user)
   }
+
 
   async checkActivityUser(email) {
     const user = await User.findOne({ email })
@@ -305,48 +396,28 @@ Bạn sẽ nhận được thông báo qua email khi tài khoản được kích
     }
   }
 
-  async verifyOrg(user) {
-    try {
-      const org = await OrganizationInfo.findOne({ user });
-
-      if (!org) {
-        throw new Error('Organization not found');
-      }
-
-      if (org.verified === true) {
-        return { alreadyVerified: true };
-      }
-
-      org.verified = true;
-      await org.save();
-
-      return { verifiedNow: true };
-    } catch (error) {
-      throw new Error(error.message || 'Invalid or expired token');
-    }
-  }
-
   async createDonorProfile(user) {
-  try {
-    const exists = await DonorProfile.findOne({ userId: user._id });
-    if (exists) {
-      throw new Error("Donor profile already exists");
+    try {
+      const exists = await DonorProfile.findOne({ userId: user._id });
+      if (exists) {
+        throw new Error("Donor profile already exists");
+      }
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      const donorProfile = await DonorProfile.create({
+        userId: user._id,
+        donatedCampaigns: []
+      });
+
+      return donorProfile;
+    } catch (error) {
+      throw new Error(error.message || "Invalid or expired token");
     }
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const donorProfile = await DonorProfile.create({
-      userId: user._id,
-      donatedCampaigns: []
-    });
-
-    return donorProfile;
-  } catch (error) {
-    throw new Error(error.message || "Invalid or expired token");
   }
-}
+
 }
 
 
