@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema({
   }],
   role: {
     type: String,
-    enum: ['user', 'admin','organization','manager'],
+    enum: ['user', 'admin', 'organization', 'manager'],
     default: 'user'
   },
   status: {
@@ -55,14 +55,14 @@ const userSchema = new mongoose.Schema({
     required: true
   },
   bio: {
-    type:String
+    type: String
   },
-managedBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'User', 
-  default: null
-},
-communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'CommuneInfo' },
+  managedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'CommuneInfo' },
 
 }, { timestamps: true });
 

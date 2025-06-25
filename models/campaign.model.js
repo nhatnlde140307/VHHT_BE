@@ -2,14 +2,6 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-
-const phaseSchema = new Schema({
-  name: { type: String, required: true },
-  start: { type: Date, required: true },
-  end: { type: Date, required: true },
-  description: { type: String }
-});
-
 const campaignSchema = new Schema({
   name: { type: String, required: true },
 
@@ -45,7 +37,12 @@ const campaignSchema = new Schema({
     ref: 'Department'
   }],
 
-  phases: [phaseSchema],
+  phases: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Phase'
+    }
+  ],
 
   volunteers: [
     {

@@ -132,6 +132,26 @@ export const loginController = async (req, res) => {
   })
 }
 
+export const importStaffUsers = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'Thiếu file Excel cần import' })
+    }
+    const role = req.query.role?.toLowerCase()
+
+    const result = await usersService.importUsersFromExcelBuffer(req.file.buffer,role)
+
+    return res.status(201).json({
+      message: 'Import user role staff hoàn tất!',
+      totalImported: result.successCount,
+      failed: result.failed
+    })
+  } catch (error) {
+    console.error('Lỗi import:', error)
+    res.status(500).json({ message: 'Có lỗi xảy ra khi import user' })
+  }
+}
+
 export const updateUserController = async (req, res, next) => {
   const user_id = req.params.userId
   const result = await usersService.updateUser(user_id, req.body, req?.file)

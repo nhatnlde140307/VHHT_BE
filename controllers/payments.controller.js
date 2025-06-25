@@ -52,7 +52,7 @@ export const createOrderPaymentZaloPayController = async (req, res) => {
       app_user: donorName || "anonymous-donor",
       app_time: Date.now(),
       item: JSON.stringify([{ name: "Ủng hộ chiến dịch", amount }]),
-      embed_data: JSON.stringify({ redirecturl: `${process.env.FRONTEND_URL}/${donationCampaignId || 'general'}`, donationCampaignId, userId }),
+      embed_data: JSON.stringify({ redirecturl: `${process.env.FRONTEND_URL}/thankyou`, donationCampaignId, userId }),
       amount: totalAmount,
       description: `Ủng hộ chiến dịch #${donationCampaignId || 'Chung'}`,
       bank_code: "",
@@ -197,8 +197,13 @@ export const callbackZalopay = async (req, res) => {
 // 🧠 Cập nhật DonorProfile và gửi email xác nhận
 const updateDonorProfile = async (userId, campaign, amount, transactionCode, timestamp) => {
   try {
+    console.log("👤 userId:", userId);
+
     const user = await User.findById(userId);
-    if (!user) return;
+    if (!user) {
+      console.error("❌ Không tìm thấy user từ userId:", userId);
+      return;
+    };
 
     let donorProfile = await DonorProfile.findOne({ userId: user._id });
     if (!donorProfile) {
@@ -222,7 +227,7 @@ const updateDonorProfile = async (userId, campaign, amount, transactionCode, tim
 
     await donorProfile.save();
 
-    await aiService.sendDonationSuccessEmail(user.email, {
+    await aiServive.sendDonationSuccessEmail(user.email, {
       donorName: user.fullName,
       amount: amount,
       transactionCode: transactionCode,

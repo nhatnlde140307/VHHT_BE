@@ -9,6 +9,9 @@ import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import DonorProfile from '../models/donorProfile.model.js'
 import { CommuneModel } from '../models/commune.model.js'
 import mongoose from 'mongoose'
+import xlsx from 'xlsx'
+import bcrypt from 'bcrypt'
+
 config()
 class UsersService {
   signAccessToken(user_id, role) {
@@ -221,204 +224,256 @@ class UsersService {
     return user
   }
 
+  async importUsersFromExcelBuffer(buffer, role = 'user') {
+
+    const workbook = xlsx.read(buffer, { type: 'buffer' })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    const data = xlsx.utils.sheet_to_json(sheet)
+
+    const saltRounds = 10
+
+    const success = []
+    const failed = []
+
+    for (const item of data) {
+      const existingUser = await User.findOne({ email: item.email })
+
+      if (existingUser) {
+        failed.push({
+          email: item.email,
+          reason: 'Email đã tồn tại trong hệ thống'
+        })
+        continue
+      }
+
+      const hashedPassword = await bcrypt.hash(item.password, saltRounds)
+
+      const newUser = new User({
+        fullName: item.fullName,
+        email: item.email,
+        phone: item.phone,
+        password: hashedPassword,
+        date_of_birth: new Date(item.date_of_birth),
+        bio: item.bio || '',
+        communeId: item.communeId || null,
+        role: role,
+        status: 'active',
+        avatar: ''
+      })
+
+      await newUser.save()
+      success.push(item.email)
+    }
+
+    return {
+      successCount: success.length,
+      failed
+    }}
+
+
   async checkExistEmail(email) {
-    const user = await User.findOne({ email })
-    return Boolean(user)
-  }
+      const user = await User.findOne({ email })
+      return Boolean(user)
+    }
 
 
   async checkActivityUser(email) {
-    const user = await User.findOne({ email })
-    if (user?.status === 'inactive') {
-      return Boolean(true)
+      const user = await User.findOne({ email })
+      if (user?.status === 'inactive') {
+        return Boolean(true)
+      }
+      return Boolean(false)
     }
-    return Boolean(false)
-  }
 
   async login(payload) {
-    const user = { ...payload }
+      const user = { ...payload }
 
-    const { password: hashedPassword, role, _id, ...rest } = user._doc
+      const { password: hashedPassword, role, _id, ...rest } = user._doc
 
-    const access_token = await this.signAccessToken(_id.toString(), role)
-    return { rest, access_token, role, _id }
-  }
+      const access_token = await this.signAccessToken(_id.toString(), role)
+      return { rest, access_token, role, _id }
+    }
 
   async google(payload) {
-    try {
-      const user = { ...payload }
-      const user1 = await User.findOne({ email: user.email })
-      if (user1) {
-        const access_token = await this.signAccessToken(user1._id.toString(), user1.role)
+      try {
+        const user = { ...payload }
+        const user1 = await User.findOne({ email: user.email })
+        if (user1) {
+          const access_token = await this.signAccessToken(user1._id.toString(), user1.role)
 
-        const { password: hashedPassword, ...rest } = user1._doc
-        console.log(access_token)
-        return { rest, access_token, _id: user._id }
-      } else {
-        const generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
-        const hashedPassword1 = hashPassword(generatedPassword).toString()
-        const newUser = new User({
-          fullname: user.fullname,
-          email: user.email,
-          password: hashedPassword1,
-          profilePicture: user.photo,
-          phoneNumber: ''
-        })
-        await newUser.save()
-        const user2 = await User.findOne({ email: user.email })
-        const { _id: id } = user2._doc
-        const access_token = await this.signAccessToken(id.toString(), 'user')
-        console.log(access_token)
-        const { password: hashedPassword2, _id, ...rest } = newUser._doc
-        return { rest, access_token, _id }
+          const { password: hashedPassword, ...rest } = user1._doc
+          console.log(access_token)
+          return { rest, access_token, _id: user._id }
+        } else {
+          const generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
+          const hashedPassword1 = hashPassword(generatedPassword).toString()
+          const newUser = new User({
+            fullname: user.fullname,
+            email: user.email,
+            password: hashedPassword1,
+            profilePicture: user.photo,
+            phoneNumber: ''
+          })
+          await newUser.save()
+          const user2 = await User.findOne({ email: user.email })
+          const { _id: id } = user2._doc
+          const access_token = await this.signAccessToken(id.toString(), 'user')
+          console.log(access_token)
+          const { password: hashedPassword2, _id, ...rest } = newUser._doc
+          return { rest, access_token, _id }
+        }
+      } catch (error) {
+        console.log(error)
       }
-    } catch (error) {
-      console.log(error)
     }
-  }
 
   async getUser(payload) {
-    const { user_id } = { ...payload }
+      const { user_id } = { ...payload }
 
-    try {
-      const getUser = await User.findOne({ _id: user_id.toString() }).populate('driverLicenses')
-      return { getUser, user_id }
-    } catch (error) { }
-  }
+      try {
+        const getUser = await User.findOne({ _id: user_id.toString() }).populate('driverLicenses')
+        return { getUser, user_id }
+      } catch (error) { }
+    }
 
   async getUserByEmail(payload) {
-    const { email } = { ...payload }
-    console.log(email)
+      const { email } = { ...payload }
+      console.log(email)
 
-    try {
-      const getUser = await User.findOne({ email: email.toString() })
-      return getUser
-    } catch (error) { }
-  }
+      try {
+        const getUser = await User.findOne({ email: email.toString() })
+        return getUser
+      } catch (error) { }
+    }
 
   async updateUser(user_id, payload, payloadFile) {
-    try {
-      if (payloadFile && payloadFile.path) {
-        payload.profilePicture = payloadFile.path
-      }
-      const updateUser = await User.findByIdAndUpdate(user_id.toString(), { ...payload }, { new: true })
+      try {
+        if (payloadFile && payloadFile.path) {
+          payload.profilePicture = payloadFile.path
+        }
+        const updateUser = await User.findByIdAndUpdate(user_id.toString(), { ...payload }, { new: true })
 
-      return { updateUser, user_id }
-    } catch (error) {
-      throw Error(error)
+        return { updateUser, user_id }
+      } catch (error) {
+        throw Error(error)
+      }
     }
-  }
 
   async resetPassword(payload) {
-    try {
-      const user = await User.findOne({ email: payload.email })
+      try {
+        const user = await User.findOne({ email: payload.email })
 
-      const resetPassword = await User.findByIdAndUpdate(
-        user._id.toString(),
-        { $set: { password: hashPassword(payload.password).toString() } },
-        { new: true }
-      )
-      return resetPassword
-    } catch (error) {
-      console.log(error)
+        const resetPassword = await User.findByIdAndUpdate(
+          user._id.toString(),
+          { $set: { password: hashPassword(payload.password).toString() } },
+          { new: true }
+        )
+        return resetPassword
+      } catch (error) {
+        console.log(error)
+      }
     }
-  }
 
   async changePassword(user_id, oldPassword, newPassword) {
-    try {
+      try {
 
-      const user = await User.findById(user_id)
-      const isPasswordValid = await comparePassword(oldPassword, user.password)
-      if (!isPasswordValid) {
-        throw new Error('Invalid old password')
+        const user = await User.findById(user_id)
+        const isPasswordValid = await comparePassword(oldPassword, user.password)
+        if (!isPasswordValid) {
+          throw new Error('Invalid old password')
+        }
+
+        user.password = hashPassword(newPassword).toString()
+        await user.save()
+
+        const updatedUser = await User.findById(user_id)
+
+        return { message: 'Password changed successfully', user: updatedUser }
+      } catch (error) {
+        console.log(error)
       }
-
-      user.password = hashPassword(newPassword).toString()
-      await user.save()
-
-      const updatedUser = await User.findById(user_id)
-
-      return { message: 'Password changed successfully', user: updatedUser }
-    } catch (error) {
-      console.log(error)
     }
-  }
 
   async updateUser(user_id, payload, payloadFile) {
-    try {
-      if (payloadFile && payloadFile.path) {
-        payload.avatar = payloadFile.path
-      }
-      const updateUser = await User.findByIdAndUpdate(user_id.toString(), { ...payload }, { new: true })
+      try {
+        if (payloadFile && payloadFile.path) {
+          payload.avatar = payloadFile.path
+        }
+        const updateUser = await User.findByIdAndUpdate(user_id.toString(), { ...payload }, { new: true })
 
-      return { updateUser, user_id }
-    } catch (error) {
-      throw Error(error)
+        return { updateUser, user_id }
+      } catch (error) {
+        throw Error(error)
+      }
     }
-  }
 
   async verifyEmail(token) {
-    try {
-      const decoded = jwt.verify(token, process.env.EMAIL_SECRET)
-      const user = await User.findById(decoded.userId)
+      try {
+        const decoded = jwt.verify(token, process.env.EMAIL_SECRET)
+        const user = await User.findById(decoded.userId)
 
-      if (!user) throw new Error('User not found')
-      if (user.status === 'active') return { alreadyVerified: true }
+        if (!user) throw new Error('User not found')
+        if (user.status === 'active') return { alreadyVerified: true }
 
-      user.status = 'active'
-      await user.save()
+        user.status = 'active'
+        await user.save()
 
-      const access_token = await this.signAccessToken(user._id.toString(), user.role)
+        const access_token = await this.signAccessToken(user._id.toString(), user.role)
 
-      return { access_token }
-    } catch (error) {
-      throw new Error(error.message || 'Invalid or expired token')
+        return { access_token }
+      } catch (error) {
+        throw new Error(error.message || 'Invalid or expired token')
+      }
     }
-  }
 
   async changePassword(user_id, oldPassword, newPassword) {
-    try {
-      const user = await User.findById(user_id)
+      try {
+        const user = await User.findById(user_id)
 
-      const isPasswordValid = await comparePassword(oldPassword, user.password)
-      if (!isPasswordValid) {
-        throw new Error('Invalid old password')
+        const isPasswordValid = await comparePassword(oldPassword, user.password)
+        if (!isPasswordValid) {
+          throw new Error('Invalid old password')
+        }
+
+        user.password = hashPassword(newPassword).toString()
+        await user.save()
+
+        const updatedUser = await User.findById(user_id)
+
+        return { message: 'Password changed successfully', user: updatedUser }
+      } catch (error) {
+        console.log(error)
       }
-
-      user.password = hashPassword(newPassword).toString()
-      await user.save()
-
-      const updatedUser = await User.findById(user_id)
-
-      return { message: 'Password changed successfully', user: updatedUser }
-    } catch (error) {
-      console.log(error)
     }
-  }
 
   async createDonorProfile(user) {
-    try {
-      const exists = await DonorProfile.findOne({ userId: user._id });
-      if (exists) {
-        throw new Error("Donor profile already exists");
+      try {
+        if (!user) {
+          console.error("❌ User is undefined in createDonorProfile");
+          throw new Error("User not found");
+        }
+
+        const exists = await DonorProfile.findOne({ userId: user._id });
+        if (exists) {
+          console.warn("⚠️ Donor profile already exists for user:", user._id);
+          throw new Error("Donor profile already exists");
+        }
+
+        const donorProfile = await DonorProfile.create({
+          userId: user._id,
+          donatedCampaigns: [],
+          totalDonated: 0
+        });
+
+        console.log("✅ Donor profile created:", donorProfile._id);
+        return donorProfile;
+      } catch (error) {
+        console.error("❌ Error in createDonorProfile:", error);
+        throw new Error(error.message || "Error creating donor profile");
       }
-
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      const donorProfile = await DonorProfile.create({
-        userId: user._id,
-        donatedCampaigns: []
-      });
-
-      return donorProfile;
-    } catch (error) {
-      throw new Error(error.message || "Invalid or expired token");
     }
-  }
 
-}
+  }
 
 
 

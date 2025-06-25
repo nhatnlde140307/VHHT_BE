@@ -1,0 +1,15 @@
+import mongoose from 'mongoose';
+
+const phaseSchema = new mongoose.Schema({
+    campaignId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Campaign',
+        required: true
+    },
+    name: { type: String, required: true },
+    description: { type: String },
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true }
+}, { timestamps: true });
+
+export default mongoose.model('Phase', phaseSchema);

@@ -1,15 +1,17 @@
 import express from 'express'
+import multer from 'multer'
 import {
   registerValidator,accessTokenValidator,
   loginValidator,adminValidator, AdminOrganizationAndManagerValidator
 } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { disableUser,createOrganization,enableUser,
+import { importStaffUsers, disableUser,createOrganization,enableUser,
   registerController,getUserById,getProfile, getUsers,createManager,verifyEmail,updateUserController,loginController,googleController,changePasswordController
 } from '../controllers/users.controller.js'
 
 import uploadCloud from '../utils/cloudinary.config.js'
 const usersRoutes = express.Router()
+const upload = multer({ storage: multer.memoryStorage() })
 
 //tao user
 usersRoutes.post('/register', registerValidator, wrapRequestHandler(registerController))
@@ -30,7 +32,7 @@ usersRoutes.put(
 //get curernt user
 usersRoutes.get('/profile',accessTokenValidator, wrapRequestHandler(getProfile))
 
-//cjamhe pw
+//change pw
 usersRoutes.put('/change-password', accessTokenValidator, wrapRequestHandler(changePasswordController))
 
 //getuser by id
@@ -45,7 +47,12 @@ usersRoutes.post('/create-organization', AdminOrganizationAndManagerValidator, w
 //unban
 usersRoutes.patch('/:id/enable', adminValidator, wrapRequestHandler(enableUser))
 
+//lolnn
 usersRoutes.post('/login', loginValidator, wrapRequestHandler(loginController))
+ 
+//import multi staff
+usersRoutes.post('/import-staffs', upload.single('file'),AdminOrganizationAndManagerValidator, wrapRequestHandler(importStaffUsers))
+
 
 usersRoutes.get('/verify-email', wrapRequestHandler(verifyEmail))
 
