@@ -5,13 +5,15 @@ import {
   loginValidator,adminValidator, AdminOrganizationAndManagerValidator
 } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { importStaffUsers, disableUser,createOrganization,enableUser,
+import { importStaffUsers,getAllcomune, disableUser,createOrganization,enableUser,
   registerController,getUserById,getProfile, getUsers,createManager,verifyEmail,updateUserController,loginController,googleController,changePasswordController
 } from '../controllers/users.controller.js'
 
 import uploadCloud from '../utils/cloudinary.config.js'
 const usersRoutes = express.Router()
 const upload = multer({ storage: multer.memoryStorage() })
+
+usersRoutes.get('/commune', getAllcomune)
 
 //tao user
 usersRoutes.post('/register', registerValidator, wrapRequestHandler(registerController))
@@ -52,6 +54,8 @@ usersRoutes.post('/login', loginValidator, wrapRequestHandler(loginController))
  
 //import multi staff
 usersRoutes.post('/import-staffs', upload.single('file'),AdminOrganizationAndManagerValidator, wrapRequestHandler(importStaffUsers))
+
+//get all comune
 
 
 usersRoutes.get('/verify-email', wrapRequestHandler(verifyEmail))

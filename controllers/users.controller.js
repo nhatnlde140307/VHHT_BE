@@ -1,6 +1,7 @@
 import { USER_MESSAGES } from '../constants/messages.js'
 import usersService from '../services/users.services.js'
 import User from '../models/users.model.js'
+import { CommuneModel } from '../models/commune.model.js'
 
 export const registerController = async (req, res, next) => {
   const result = await usersService.register(req.body)
@@ -11,6 +12,16 @@ export const registerController = async (req, res, next) => {
     id: result.user_id
   })
 }
+
+export const getAllcomune = async (req, res) => {
+  try {
+    const communes = await CommuneModel.find();
+    res.status(200).json(communes);
+  } catch (error) {
+    console.error('Error in getAllcomune:', error);
+    res.status(500).json({ message: 'Lỗi khi lấy dữ liệu', error: error.message });
+  }
+};
 
 export const createManager = async (req, res) => {
   try {
