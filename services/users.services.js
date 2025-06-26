@@ -111,6 +111,7 @@ class UsersService {
   async getUsers({ role, district, province }) {
     const userFilter = {}
     if (role) userFilter.role = role
+    userFilter.role = { $ne: 'admin' } 
 
     if (district || province) {
       const communeFilter = {}
@@ -127,7 +128,7 @@ class UsersService {
       .select('-password')
 
     return users
-  }
+}
 
   async getUserById(userId) {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
