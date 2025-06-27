@@ -24,6 +24,12 @@ const phaseDaySchema = new mongoose.Schema({
         enum: ["upcoming", "in-progress", "completed"],
         default: "upcoming"
     },
+    tasks:[
+      {
+         type: mongoose.Schema.Types.ObjectId,
+          ref: 'Task'
+      }
+    ]
 }, { timestamps: true });
 
 export default mongoose.model('PhaseDay', phaseDaySchema);
