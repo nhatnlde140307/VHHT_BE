@@ -12,6 +12,7 @@ import { importStaffUsers,getAllcomune, disableUser,createOrganization,enableUse
 import uploadCloud from '../utils/cloudinary.config.js'
 const usersRoutes = express.Router()
 const upload = multer({ storage: multer.memoryStorage() })
+//get all comune
 
 usersRoutes.get('/commune', getAllcomune)
 
@@ -55,7 +56,6 @@ usersRoutes.post('/login', loginValidator, wrapRequestHandler(loginController))
 //import multi staff
 usersRoutes.post('/import-staffs', upload.single('file'),AdminOrganizationAndManagerValidator, wrapRequestHandler(importStaffUsers))
 
-//get all comune
 
 
 usersRoutes.get('/verify-email', wrapRequestHandler(verifyEmail))

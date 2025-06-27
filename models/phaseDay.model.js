@@ -18,7 +18,12 @@ const phaseDaySchema = new mongoose.Schema({
       required: true
     },
     address: { type: String }
-  }
+  },
+    status: {
+        type: String,
+        enum: ["upcoming", "in-progress", "completed"],
+        default: "upcoming"
+    },
 }, { timestamps: true });
 
 export default mongoose.model('PhaseDay', phaseDaySchema);

@@ -19,12 +19,24 @@ export const getListCampaigns = async (req, res, next) => {
 }
 
 export const createCampaign = async (req, res, next) => {
-  const userId = req.decoded_authorization.user_id;
-  const result = await campaignServices.createCampaign(req.body,userId)
-  return res.status(HTTP_STATUS.CREATED).json({
-    message: CAMPAIGN_MESSAGE.CREATE_CAMPAIGN_SUCCESS,
-    result
-  })
+  try {
+    const userId = req.decoded_authorization.user_id;
+    const campaignImg = req.files?.campaignImg?.[0]?.path || null;
+    const gallery = req.files?.gallery?.map(file => file.path) || [];
+    const campaign = await campaignServices.createCampaign(req.body, userId, campaignImg, gallery);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Tạo chiến dịch thành công',
+      data: campaign
+    });
+  } catch (error) {
+    console.error('Lỗi khi tạo chiến dịch:', error);
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Lỗi server khi tạo chiến dịch'
+    });
+  }
 }
 
 export const deleteCampaign = async (req, res) => {
@@ -39,23 +51,59 @@ export const deleteCampaign = async (req, res) => {
 
 export const getCampaignById = async (req, res) => {
   try {
-    const { campaignId } = req.params;
+    const campaignId = req.params.campaignId;
     const campaign = await campaignServices.getCampaignById(campaignId);
-    res.json(campaign);
-  } catch (err) {
-    res.status(404).json({ error: { message: err.message } });
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy thông tin chiến dịch thành công',
+      data: campaign
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy chiến dịch:', error);
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Lỗi server khi lấy chiến dịch'
+    });
   }
 };
 
 export const updateCampaign = async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const result = await campaignServices.updateCampaign(campaignId, req.body);
+    const campaignImg = req.files?.campaignImg?.[0]?.path || null;
+    const gallery = req.files?.gallery?.map(file => file.path) || [];
+    const result = await campaignServices.updateCampaign(campaignId, req.body, campaignImg, gallery);
     res.status(200).json(result);
   } catch (err) {
     res.status(400).json({ error: { message: err.message } });
   }
 };
+
+export const approveCampaign = async (req, res) => {
+  const { campaignId } = req.params
+
+  const updatedCampaign = await campaignServices.approveCampaign(campaignId)
+
+  return res.status(200).json({
+    success: true,
+    message: 'Chiến dịch đã được phê duyệt',
+    data: updatedCampaign
+  })
+}
+
+export const rejectCampaign = async (req, res) => {
+  const { campaignId } = req.params
+  const { reason } = req.body 
+  console.log(reason)
+
+  const updatedCampaign = await campaignServices.rejectCampaign(campaignId, reason)
+
+  return res.status(200).json({
+    success: true,
+    message: 'Chiến dịch đã bị từ chối',
+    data: updatedCampaign
+  })
+}
 
 export const registerCampaign = async (req, res) => {
   try {

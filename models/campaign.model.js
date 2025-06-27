@@ -32,6 +32,8 @@ const campaignSchema = new Schema({
 
   image: { type: String },
 
+  gallery: [{ type: String }],
+
   departments: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department'
@@ -84,6 +86,11 @@ const campaignSchema = new Schema({
     type: String,
     enum: ["upcoming", "in-progress", "completed"],
     default: "upcoming"
+  },
+  acceptStatus:{
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending"
   }
 
 }, {

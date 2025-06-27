@@ -2,6 +2,9 @@ import Campaign from '../models/campaign.model.js';
 import mongoose from 'mongoose'
 import { hashPassword } from '../utils/crypto.js'
 import Department from '../models/departments.model.js';
+import Phase from '../models/phase.model.js'
+import PhaseDay from '../models/phaseDay.model.js'
+import Task from '../models/task.model.js'
 import { CAMPAIGN_MESSAGE } from '../constants/messages.js';
 import User from '../models/users.model.js';
 import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
@@ -9,6 +12,7 @@ import axios from 'axios';
 import aiServive from './ai.servive.js';
 import { generateCertificateAndUpload } from './certificate.service.js';
 import Certificate from '../models/certificate.model.js'
+import { v2 as cloudinary } from 'cloudinary'
 
 class CampaignServices {
     async getListCampaigns(query) {
@@ -18,27 +22,25 @@ class CampaignServices {
             const excludeFields = ['page', 'sort', 'limit', 'fields'];
             excludeFields.forEach(el => delete queryObj[el]);
 
-            // Search by name
             if (queryObj.name) {
                 queryObj.name = { $regex: queryObj.name, $options: 'i' };
             }
 
-            // Filter by certificatesIssued (Boolean)
             if (queryObj.certificatesIssued !== undefined) {
                 queryObj.certificatesIssued = queryObj.certificatesIssued === 'true';
             }
 
-            // Advanced filter operators (gte, gt, lte, lt)
             let queryStr = JSON.stringify(queryObj);
             queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, match => `$${match}`);
 
             let mongooseQuery = Campaign.find(JSON.parse(queryStr))
-                .populate('createdBy', 'fullname') // nếu có field này
+                .populate('createdBy', 'fullname')
                 .populate('departments', 'name')
-                .populate('volunteers.user', 'fullname')
-                .populate('categories', 'name color icon');
+                .populate('categories', 'name color icon')
+                .populate('volunteers.user', 'fullName email')
+                .populate('phases')
+                .lean();
 
-            // Sorting
             if (sort) {
                 const sortBy = sort.split(',').join(' ');
                 mongooseQuery = mongooseQuery.sort(sortBy);
@@ -46,13 +48,11 @@ class CampaignServices {
                 mongooseQuery = mongooseQuery.sort('-createdAt');
             }
 
-            // Select fields
             if (fields) {
                 const selectFields = fields.split(',').join(' ');
                 mongooseQuery = mongooseQuery.select(selectFields);
             }
 
-            // Pagination
             const skip = (page - 1) * limit;
             mongooseQuery = mongooseQuery.skip(skip).limit(limit);
 
@@ -71,7 +71,7 @@ class CampaignServices {
         }
     }
 
-    async createCampaign(payload, userId) {
+    async createCampaign(data, userId, campaignImg, gallery) {
         try {
             const {
                 name,
@@ -79,149 +79,264 @@ class CampaignServices {
                 location,
                 startDate,
                 endDate,
-                createdBy,
                 image,
-                departments = [],
-                phases = [],
-                categories = []
-            } = payload;
+                categories,
+                acceptStatus
+            } = data;
 
-            // Validate bắt buộc
-            if (!name || !description || !location || !startDate || !endDate) {
-                throw new Error('Missing required fields');
+            if (!name || !description || !startDate || !endDate) {
+                const error = new Error('Thiếu các trường bắt buộc: name, description, startDate, endDate');
+                error.status = 400;
+                throw error;
             }
 
-            // Validate location
-            if (
-                !location.type ||
-                location.type !== "Point" ||
-                !Array.isArray(location.coordinates) ||
-                location.coordinates.length !== 2
-            ) {
-                throw new Error("Invalid location format: Must be { type: 'Point', coordinates: [lng, lat] }");
-            }
-
-            // Validate phases
-            phases.forEach(phase => {
-                if (!phase.name || !phase.start || !phase.end) {
-                    throw new Error("Each phase must include name, start, and end date");
+            let parsedLocation = location;
+            if (typeof location === 'string') {
+                try {
+                    parsedLocation = JSON.parse(location);
+                } catch {
+                    const error = new Error('location phải là object hoặc JSON string hợp lệ');
+                    error.status = 400;
+                    throw error;
                 }
-            });
-
-            // Validate categories: phải là array ObjectId hoặc string hợp lệ
-            if (!Array.isArray(categories)) {
-                throw new Error("Categories must be an array");
             }
 
-            const newCampaign = await Campaign.create({
+            if (
+                !parsedLocation?.coordinates ||
+                !Array.isArray(parsedLocation.coordinates) ||
+                parsedLocation.coordinates.length !== 2
+            ) {
+                const error = new Error('Location phải chứa coordinates [lng, lat]');
+                error.status = 400;
+                throw error;
+            }
+
+            let parsedCategories = categories;
+
+            if (typeof categories === 'string') {
+                try {
+                    const parsed = JSON.parse(categories);
+                    if (Array.isArray(parsed)) {
+                        parsedCategories = parsed;
+                    } else {
+                        parsedCategories = categories.split(',').map(id => id.trim());
+                    }
+                } catch {
+                    parsedCategories = categories.split(',').map(id => id.trim());
+                }
+            } else if (!Array.isArray(categories)) {
+                parsedCategories = [categories];
+            }
+
+            const categoryObjectIds = parsedCategories.map(id => new mongoose.Types.ObjectId(id));
+
+            const campaign = new Campaign({
                 name,
                 description,
-                location,
+                location: {
+                    type: 'Point',
+                    coordinates: parsedLocation.coordinates,
+                    address: parsedLocation.address
+                },
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
                 image,
-                departments,
-                createdBy: userId,
-                phases,
-                categories,
-                certificatesIssued: false
+                categories: categoryObjectIds,
+                createdBy: new mongoose.Types.ObjectId(userId),
+                status: 'upcoming',
+                acceptStatus: acceptStatus || 'pending',
+                campaignImg,
+                gallery
             });
 
-            return newCampaign;
+            await campaign.save();
+            return campaign;
         } catch (err) {
-            throw new Error(`Failed to create campaign: ${err.message}`);
+            console.error('❌ Lỗi trong service createCampaign:', err);
+            throw err;
         }
     }
 
     async deleteCampaign(campaignId) {
         try {
-            const campaign = await Campaign.findById(campaignId);
+            const campaign = await Campaign.findById(campaignId)
             if (!campaign) {
-                throw new Error('Campaign not found');
+                const error = new Error('Không tìm thấy chiến dịch')
+                error.status = 404
+                throw error
             }
 
-            await Campaign.findByIdAndDelete(campaignId);
+            if (campaign.image) {
+                const publicId = image.includes('http')
+                    ? getPublicIdFromUrl(image)
+                    : image
 
-            return { message: CAMPAIGN_MESSAGE.DELETE_CAMPAIGN_SUCCESS };
+                await cloudinary.uploader.destroy(publicId)
+
+            }
+
+            if (Array.isArray(campaign.gallery)) {
+                for (const img of campaign.gallery) {
+                    const publicId = img.includes('http')
+                        ? aiServive.getPublicIdFromUrl(img)
+                        : img
+                    await cloudinary.uploader.destroy(publicId)
+                }
+            }
+
+            await campaign.deleteOne()
+
+            return {
+                message: CAMPAIGN_MESSAGE.DELETE_CAMPAIGN_SUCCESS
+            }
         } catch (err) {
-            throw new Error(`Failed to delete campaign: ${err.message}`);
+            console.error('❌ Lỗi khi xoá campaign:', err)
+            throw new Error(`Xoá chiến dịch thất bại: ${err.message}`)
         }
     }
 
     async getCampaignById(campaignId) {
+        if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+            const error = new Error('ID chiến dịch không hợp lệ')
+            error.status = 400
+            throw error
+        }
+
+        // Lấy campaign kèm populate cơ bản
+        const campaign = await Campaign.findById(campaignId)
+            .populate('categories')
+            .populate('createdBy', 'name email')
+            .populate('departments')
+            .populate({
+                path: 'phases',
+                populate: {
+                    path: 'phaseDays', 
+                    populate: {
+                        path: 'tasks',
+                        model: 'Task' 
+                    }
+                }
+            })
+            .populate('volunteers.user', 'name email')
+            .lean()
+
+        if (!campaign) {
+            const error = new Error('Không tìm thấy chiến dịch')
+            error.status = 404
+            throw error
+        }
+        const phases = await Phase.find({ _id: { $in: campaign.phases.map(p => p._id) } }).lean()
+
+        for (const phase of phases) {
+            const phaseDays = await PhaseDay.find({ phaseId: phase._id }).lean()
+            for (const day of phaseDays) {
+                const tasks = await Task.find({ phaseDayId: day._id }).lean()
+                day.tasks = tasks
+            }
+            phase.phaseDays = phaseDays
+        }
+
+        campaign.phases = phases
+
+        return campaign
+    }
+
+    async updateCampaign(campaignId, payload, campaignImg, gallery) {
         try {
-            if (!campaignId || !mongoose.Types.ObjectId.isValid(campaignId)) {
-                throw new Error('Invalid campaign ID');
+            if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+                throw new Error('ID chiến dịch không hợp lệ')
             }
 
             const campaign = await Campaign.findById(campaignId)
-                .populate('departments', 'name')
-                .populate('volunteers.user', 'fullname')
-                .populate('categories', 'name');
-
             if (!campaign) {
-                throw new Error('Campaign not found');
-            }
-
-            return campaign;
-        } catch (err) {
-            throw new Error(`Failed to get campaign: ${err.message}`);
-        }
-    }
-
-    async updateCampaign(campaignId, payload) {
-        try {
-            if (!mongoose.Types.ObjectId.isValid(campaignId)) {
-                throw new Error("Invalid campaign ID");
-            }
-
-            const campaign = await Campaign.findById(campaignId);
-            if (!campaign) {
-                throw new Error("Campaign not found");
+                throw new Error('Không tìm thấy chiến dịch')
             }
 
             const fields = [
-                "name", "description", "startDate", "endDate",
-                "location", "departments", "phases", "image", "categories"
-            ];
+                'name',
+                'description',
+                'startDate',
+                'endDate',
+                'location',
+                'phases',
+                'image',
+                'categories'
+            ]
 
-            fields.forEach(field => {
-                if (payload[field] !== undefined) {
-                    campaign[field] = payload[field];
-                }
-            });
-
-            // Validate location nếu có
             if (payload.location) {
-                const { type, coordinates } = payload.location;
+                const { type, coordinates } = payload.location
                 if (
                     type !== 'Point' ||
                     !Array.isArray(coordinates) ||
                     coordinates.length !== 2
                 ) {
-                    throw new Error("Invalid location format: { type: 'Point', coordinates: [lng, lat] }");
+                    throw new Error("Sai định dạng location: { type: 'Point', coordinates: [lng, lat] }")
                 }
             }
 
-            // Validate phases nếu có
-            if (Array.isArray(payload.phases)) {
-                for (const phase of payload.phases) {
-                    if (!phase.name || !phase.start || !phase.end) {
-                        throw new Error("Each phase must include name, start, and end");
-                    }
+            fields.forEach(field => {
+                if (payload[field] !== undefined) {
+                    campaign[field] = payload[field]
                 }
+            })
+
+            if (Array.isArray(campaignImg) && campaignImg.length > 0) {
+                campaign.campaignImg = campaignImg
             }
 
-            // Optionally validate categories are ObjectIds
-            if (payload.categories && !Array.isArray(payload.categories)) {
-                throw new Error("Categories must be an array");
+            if (Array.isArray(gallery) && gallery.length > 0) {
+                campaign.gallery = [...(campaign.gallery || []), ...gallery]
             }
 
-            const updated = await campaign.save();
-            return updated;
+            const updated = await campaign.save()
+            return updated
         } catch (err) {
-            throw new Error(`Failed to update campaign: ${err.message}`);
+            console.error('❌ [updateCampaign] Lỗi:', err)
+            throw new Error(`Cập nhật chiến dịch thất bại: ${err.message}`)
         }
+    }
+
+    async approveCampaign(campaignId) {
+        if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+            throw new Error('ID chiến dịch không hợp lệ')
+        }
+
+        const campaign = await Campaign.findById(campaignId)
+        if (!campaign) {
+            throw new Error('Không tìm thấy chiến dịch để phê duyệt')
+        }
+
+        if (campaign.acceptStatus === 'approved') {
+            throw new Error('Chiến dịch đã được duyệt trước đó rồi')
+        }
+
+        campaign.acceptStatus = 'approved'
+        campaign.approvedAt = new Date()
+
+        await campaign.save()
+        return campaign
+    }
+
+    async rejectCampaign(campaignId, reason) {
+        if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+            throw new Error('ID chiến dịch không hợp lệ')
+        }
+
+        const campaign = await Campaign.findById(campaignId)
+        if (!campaign) {
+            throw new Error('Không tìm thấy chiến dịch để từ chối')
+        }
+
+        if (campaign.acceptStatus === 'rejected') {
+            throw new Error('Chiến dịch đã bị từ chối trước đó')
+        }
+
+        campaign.acceptStatus = 'rejected'
+        campaign.rejectedAt = new Date()
+        campaign.rejectionReason = reason || 'Không có lý do cụ thể'
+
+        await campaign.save()
+        return campaign
     }
 
     async registerCampaign({ campaignId, userId }) {
@@ -335,7 +450,6 @@ class CampaignServices {
         await campaign.save();
 
         try {
-            // 🔹 Gọi AI để tạo nội dung
             const content = await aiServive.generateCampaignContent({
                 title: campaign.name,
                 description: campaign.description,

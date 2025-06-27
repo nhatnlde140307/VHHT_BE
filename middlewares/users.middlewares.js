@@ -248,7 +248,7 @@ export const managerValidator = validate(
               }
 
               req.decoded_authorization = decoded_authorization;
-              return true; 
+              return true;
             } catch (error) {
               throw new ErrorWithStatus({
                 message: capitalize(error.message),
@@ -298,7 +298,7 @@ export const organizationValidator = validate(
               }
 
               req.decoded_authorization = decoded_authorization;
-              return true; 
+              return true;
             } catch (error) {
               throw new ErrorWithStatus({
                 message: capitalize(error.message),
@@ -324,37 +324,44 @@ export const organizationAndManagerValidator = validate(
               throw new ErrorWithStatus({
                 message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
                 status: HTTP_STATUS.UNAUTHORIZED
-              })
+              });
             }
-            const access_token = (value || '').split(' ')[1]
 
+            const access_token = value.split(' ')[1];
             if (!access_token) {
               throw new ErrorWithStatus({
                 message: USER_MESSAGES.ACCESS_TOKEN_IS_REQUESTED,
                 status: HTTP_STATUS.UNAUTHORIZED
-              })
+              });
             }
 
             try {
               const decoded_authorization = await verifyToken({
                 token: access_token,
                 secretOrPublickey: process.env.JWT_SECRET_ACCESS_TOKEN
-              })
-              const { role } = decoded_authorization
-              if (role === 'manager' || role === 'organization') {
-                req.decoded_authorization = decoded_authorization
-              } else {
-                next(new ErrorWithStatus('You not manager or organization', HTTP_STATUS.UNAUTHORIZED))
+              });
+
+              const { role } = decoded_authorization;
+              if (role !== 'organization' && role !== 'manager') {
+                throw new ErrorWithStatus({
+                  message: 'Bạn không phải staff hoặc manager',
+                  status: HTTP_STATUS.UNAUTHORIZED
+                });
               }
-              req.decoded_authorization = decoded_authorization
+
+              req.decoded_authorization = decoded_authorization;
             } catch (error) {
+              // Xử lý lỗi rõ ràng hơn
+              const message = error.message && typeof error.message === 'string'
+                ? capitalize(error.message)
+                : 'Lỗi xác thực token';
               throw new ErrorWithStatus({
-                message: capitalize(error.message),
+                message,
                 status: HTTP_STATUS.UNAUTHORIZED
-              })
+              });
             }
 
-            return true
+            return true;
           }
         }
       }
