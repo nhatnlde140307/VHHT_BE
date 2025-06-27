@@ -1,22 +1,12 @@
 import mongoose from 'mongoose';
 
 const taskSchema = new mongoose.Schema({
-    campaignId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Campaign',
-        required: true
-    },
-    phaseId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Phase',
-        required: true
-    },
     phaseDayId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'PhaseDay',
         required: true
     },
-    name: { type: String, required: true },
+    title: { type: String, required: true },
     description: { type: String },
 
     status: {
