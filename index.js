@@ -10,6 +10,7 @@ import { config } from 'dotenv'
 import http from 'http' 
 import { initSocket } from './socket/socket.js'
 import Category from './models/category.model.js'
+import phaseModel from './models/phase.model.js'
 
 // routes
 import usersRouter from './routes/users.routes.js'
@@ -23,6 +24,7 @@ import certificateRoutes from './routes/cerificate.routes.js'
 import donateRouter from './routes/donationCampaign.routes.js'
 import notiRouter from './routes/notification.routes.js'
 import paymentsRoutes from './routes/payment.routes.js'
+import phaseRouter from './routes/phase.routes.js'
 config()
 
 const app = express()
@@ -60,6 +62,7 @@ app.use('/certificate', certificateRoutes)
 app.use('/donate', donateRouter)
 app.use('/comment', commentRouter)
 app.use('/notification', notiRouter)
+app.use('/phase', phaseRouter)
 
 app.use(defaultErrorHandler)
 

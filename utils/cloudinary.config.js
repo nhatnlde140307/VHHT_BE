@@ -26,6 +26,10 @@ const storage = new CloudinaryStorage({
       case 'avatar':
         folder = 'VHHT/avatars'
         break
+      case 'campaignImg':
+      case 'gallery':
+        folder = 'VHHT/campaignImg'
+        break
       case 'images':
         folder = 'VHHT/news'
         break

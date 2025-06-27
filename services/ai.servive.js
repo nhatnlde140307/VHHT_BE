@@ -110,6 +110,18 @@ Email nên chân thành, khoảng 120–150 từ, dễ đọc, có thể kết t
 
         await transporter.sendMail(mailOptions);
     }
+
+    async getPublicIdFromUrl(url) {
+    const getPublicIdFromUrl = (url) => {
+  const start = url.indexOf('/upload/') + 8
+  const end = url.lastIndexOf('.')
+  const publicId = url.substring(start, end)
+  const decoded = decodeURIComponent(publicId)
+  console.log('🎯 Extracted publicId =', decoded)
+  return decoded
+}
+
+}
 }
 
 export default new AiService()

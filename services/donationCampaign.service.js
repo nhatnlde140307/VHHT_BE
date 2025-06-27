@@ -3,7 +3,6 @@ import DonationCampaign from '../models/donationCampaign.model.js';
 import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import DonorProfile from '../models/donorProfile.model.js';
 import User from '../models/users.model.js';
-import OrganizationInfo from '../models/organizationInfo.model.js';
 import DonationTransaction from '../models/donationTransaction.model.js';
 
 config();

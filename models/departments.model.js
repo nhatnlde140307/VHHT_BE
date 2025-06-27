@@ -15,10 +15,6 @@ const departmentSchema = new mongoose.Schema({
     type: String,
     default: ""
   },
-  leaderIds: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
   memberIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
