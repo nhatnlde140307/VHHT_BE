@@ -29,6 +29,7 @@ import categoryRoutes from './routes/category.routes.js'
 import stormRouter from './routes/storm.routes.js'
 import rlPointrouter from './routes/reliefPoint.routes.js'
 import issueRouter from './routes/issue.routes.js'
+import forumRoutes from './routes/forum.routes.js'
 config()
 
 const app = express()
@@ -71,6 +72,7 @@ app.use('/category', categoryRoutes)
 app.use('/storm', stormRouter)
 app.use('/relief-point', rlPointrouter)
 app.use('/issue', issueRouter)
+app.use('/forum', forumRoutes)
 
 app.use(defaultErrorHandler)
 
