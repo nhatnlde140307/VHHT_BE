@@ -8,7 +8,7 @@ import { getListCampaigns,getCampaignVolunteers,
         deleteCampaign,getCampaignById,
         acceptRequestHandler, updateCampaign,
         registerCampaign,endCampaign,
-        approveCampaign,rejectCampaign
+        approveCampaign,rejectCampaign,getCategories
       } from '../controllers/campaigns.controller.js'
 import uploadCloud from '../utils/cloudinary.config.js'
 import { createDepartment,
@@ -17,6 +17,7 @@ import { createDepartment,
 
 const campaignRoutes = express.Router()
 
+
 //create campaign (staff, manager)
 campaignRoutes.post('/',uploadCloud.fields([
   { name: 'campaignImg', maxCount: 1 },
@@ -24,6 +25,9 @@ campaignRoutes.post('/',uploadCloud.fields([
 
 // get by id 
 campaignRoutes.get('/:campaignId', wrapRequestHandler(getCampaignById))
+
+campaignRoutes.get('/category', wrapRequestHandler(getCategories))
+
 
 //getlist
 campaignRoutes.get('/',wrapRequestHandler(getListCampaigns))
@@ -35,7 +39,6 @@ campaignRoutes.delete('/:campaignId',managerValidator ,wrapRequestHandler(delete
 campaignRoutes.put('/:campaignId', organizationAndManagerValidator,uploadCloud.fields([
   { name: 'campaignImg', maxCount: 1 },
   { name: 'gallery', maxCount: 10 }]), wrapRequestHandler(updateCampaign));
-
 
 //approve chiến dịch
 campaignRoutes.put('/:campaignId/approve', managerValidator, wrapRequestHandler(approveCampaign));

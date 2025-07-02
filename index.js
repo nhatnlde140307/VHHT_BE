@@ -25,6 +25,7 @@ import donateRouter from './routes/donationCampaign.routes.js'
 import notiRouter from './routes/notification.routes.js'
 import paymentsRoutes from './routes/payment.routes.js'
 import phaseRouter from './routes/phase.routes.js'
+import categoryRoutes from './routes/category.routes.js'
 config()
 
 const app = express()
@@ -63,6 +64,7 @@ app.use('/donate', donateRouter)
 app.use('/comment', commentRouter)
 app.use('/notification', notiRouter)
 app.use('/phase', phaseRouter)
+app.use('/category', categoryRoutes)
 
 app.use(defaultErrorHandler)
 

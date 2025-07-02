@@ -50,6 +50,10 @@ const userSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'inactive'
   },
+  faceDescriptor: {
+    type: [Number],
+    default: null
+  },
   date_of_birth: {
     type: Date,
     required: true

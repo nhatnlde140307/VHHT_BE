@@ -13,6 +13,7 @@ import aiServive from './ai.servive.js';
 import { generateCertificateAndUpload } from './certificate.service.js';
 import Certificate from '../models/certificate.model.js'
 import { v2 as cloudinary } from 'cloudinary'
+import Category from '../models/category.model.js';
 
 class CampaignServices {
     async getListCampaigns(query) {
@@ -210,10 +211,10 @@ class CampaignServices {
             .populate({
                 path: 'phases',
                 populate: {
-                    path: 'phaseDays', 
+                    path: 'phaseDays',
                     populate: {
                         path: 'tasks',
-                        model: 'Task' 
+                        model: 'Task'
                     }
                 }
             })
@@ -594,6 +595,7 @@ class CampaignServices {
         await campaign.save();
         return issuedCertificates;
     }
+
 
 }
 
