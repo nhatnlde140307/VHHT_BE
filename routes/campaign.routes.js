@@ -8,7 +8,7 @@ import { getListCampaigns,getCampaignVolunteers,
         deleteCampaign,getCampaignById,
         acceptRequestHandler, updateCampaign,
         registerCampaign,endCampaign,
-        approveCampaign,rejectCampaign,getCategories
+        approveCampaign,rejectCampaign
       } from '../controllers/campaigns.controller.js'
 import uploadCloud from '../utils/cloudinary.config.js'
 import { createDepartment,
@@ -25,8 +25,6 @@ campaignRoutes.post('/',uploadCloud.fields([
 
 // get by id 
 campaignRoutes.get('/:campaignId', wrapRequestHandler(getCampaignById))
-
-campaignRoutes.get('/category', wrapRequestHandler(getCategories))
 
 
 //getlist

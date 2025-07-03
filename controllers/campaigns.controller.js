@@ -173,14 +173,3 @@ export const endCampaign = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-export const getCategories = async (req, res) => {
-  try {
-    const categories = await campaignServices.getCategories();
-    res.status(200).json({
-      message: "categories success",
-      data: categories
-    });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
