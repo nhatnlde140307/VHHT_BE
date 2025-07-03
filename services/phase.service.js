@@ -146,11 +146,33 @@ export async function deletePhaseDay(phaseDayId) {
     await phaseDay.deleteOne()
     return { message: 'Xoá phaseDay thành công' }
 }
+
+export async function getPhasesByCampaignId(campaignId) {
+    if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+        throw new Error('campaignId không hợp lệ')
+    }
+
+    const campaign = await Campaign.findById(campaignId)
+    if (!campaign) {
+        throw new Error('Không tìm thấy chiến dịch')
+    }
+
+    const phases = await Phase.find({ campaignId })
+        .populate({
+            path: 'phaseDays',
+            select: 'date checkinLocation status'
+        })
+        .lean()
+
+    return phases
+}
+
 export const phaseService = {
     createPhase,
     updatePhase,
     deletePhase,
     createPhaseDay,
     updatePhaseDay,
-    deletePhaseDay
+    deletePhaseDay,
+    getPhasesByCampaignId
 }

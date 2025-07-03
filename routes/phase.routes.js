@@ -1,40 +1,45 @@
 import express from 'express'
-import { createPhase, updatePhase, deletePhase,createPhaseDay,updatePhaseDay,deletePhaseDay } from '../controllers/phase.controller.js'
+import { createPhase, updatePhase, deletePhase, createPhaseDay, updatePhaseDay, deletePhaseDay, getPhasesByCampaignId } from '../controllers/phase.controller.js'
 import { organizationAndManagerValidator } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
 import { createTask, updateTask, deleteTask } from '../controllers/task.controller.js';
 const phaseRouter = express.Router()
 
-//tao phase
+// Lấy tất cả phase và phaseDay theo campaignId
+phaseRouter.get(
+  '/:campaignId/phases',
+  wrapRequestHandler(getPhasesByCampaignId)
+)
+
+// Tạo phase
 phaseRouter.post(
-  '/campaigns/:campaignId/phases',
+  '/:campaignId/phases',
   organizationAndManagerValidator,
   wrapRequestHandler(createPhase)
 )
 
-//update phase
+// Update phase
 phaseRouter.put('/:phaseId', organizationAndManagerValidator, wrapRequestHandler(updatePhase))
 
-//xoa phase
+// Xóa phase
 phaseRouter.delete('/:phaseId', organizationAndManagerValidator, wrapRequestHandler(deletePhase))
 
-//tao phaseday
-phaseRouter.post('/:phaseId/days',organizationAndManagerValidator, wrapRequestHandler(createPhaseDay))
+// Tạo phaseday
+phaseRouter.post('/:phaseId/days', organizationAndManagerValidator, wrapRequestHandler(createPhaseDay))
 
-//update phaseday
-phaseRouter.patch('/days/:phaseDayId',organizationAndManagerValidator, wrapRequestHandler(updatePhaseDay))
+// Update phaseday
+phaseRouter.patch('/days/:phaseDayId', organizationAndManagerValidator, wrapRequestHandler(updatePhaseDay))
 
-//delete phaseday
-phaseRouter.patch('/days/:phaseDayId',organizationAndManagerValidator, wrapRequestHandler(deletePhaseDay))
+// Delete phaseday
+phaseRouter.delete('/days/:phaseDayId', organizationAndManagerValidator, wrapRequestHandler(deletePhaseDay))
 
-//tao task
-phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask));
+// Tạo task
+phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask))
 
-//update task
-phaseRouter.patch('/tasks/:taskId', wrapRequestHandler(updateTask));
+// Update task
+phaseRouter.patch('/tasks/:taskId', wrapRequestHandler(updateTask))
 
-//delete task
-phaseRouter.delete('/tasks/:taskId', wrapRequestHandler(deleteTask));
-
+// Delete task
+phaseRouter.delete('/tasks/:taskId', wrapRequestHandler(deleteTask))
 
 export default phaseRouter

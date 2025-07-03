@@ -11,7 +11,7 @@ import { getListCampaigns,getCampaignVolunteers,
         approveCampaign,rejectCampaign
       } from '../controllers/campaigns.controller.js'
 import uploadCloud from '../utils/cloudinary.config.js'
-import { createDepartment,
+import { getDepartmentsByCampaignId, createDepartment,
   updateDepartment,addMemberToDepartment,removeMemberFromDepartment,
   deleteDepartment } from '../controllers/department.controller.js'
 
@@ -44,6 +44,8 @@ campaignRoutes.put('/:campaignId/approve', managerValidator, wrapRequestHandler(
 //reject chiến dịch
 campaignRoutes.put('/:campaignId/reject', managerValidator, wrapRequestHandler(rejectCampaign));
 
+campaignRoutes.get('/:campaignId/departments', wrapRequestHandler(getDepartmentsByCampaignId));
+
 //tao phong ban
 campaignRoutes.post(
   '/:campaignId/departments',
@@ -67,7 +69,7 @@ campaignRoutes.delete(
 
 // Thêm member vào phòng ban
 campaignRoutes.patch(
-  '/departments/:departmentId/members',
+  '/departments/:departmentId/members/:userId',
   organizationAndManagerValidator,
   wrapRequestHandler(addMemberToDepartment)
 )
@@ -90,14 +92,14 @@ campaignRoutes.post(
 campaignRoutes.get(
   '/:id/volunteers',
   accessTokenValidator,
-  adminValidator,
+  organizationAndManagerValidator,
   wrapRequestHandler(getCampaignVolunteers)
 );
 
-campaignRoutes.post('/:campaignId/accept/:userId', accessTokenValidator, adminValidator, wrapRequestHandler(acceptRequestHandler))
+campaignRoutes.post('/:campaignId/accept/:userId', accessTokenValidator, organizationAndManagerValidator, wrapRequestHandler(acceptRequestHandler))
 
-campaignRoutes.put('/:campaignId/start', adminValidator, wrapRequestHandler(startCampaignHandler));
+campaignRoutes.put('/:campaignId/start', organizationAndManagerValidator, wrapRequestHandler(startCampaignHandler));
 
-campaignRoutes.put('/:campaignId/end', adminValidator, wrapRequestHandler(endCampaign));
+campaignRoutes.put('/:campaignId/end', organizationAndManagerValidator, wrapRequestHandler(endCampaign));
 
 export default campaignRoutes
