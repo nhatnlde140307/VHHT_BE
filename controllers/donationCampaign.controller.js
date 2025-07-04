@@ -31,7 +31,7 @@ export const createDonationCampaign = async (req, res) => {
     const userId = req.decoded_authorization.user_id;
     const thumbnail = req.files?.campaignImg?.[0]?.path || null;
     const images = req.files?.gallery?.map(file => file.path) || [];
-    const campaign = await DonationServices.create(images,req.body,thumbnail, userId);
+    const campaign = await DonationServices.create(images,thumbnail,req.body, userId);
 
     res.status(201).json({
       message: 'Tạo chiến dịch quyên góp thành công',
