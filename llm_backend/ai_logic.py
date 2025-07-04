@@ -1,9 +1,11 @@
-import logging
-from datetime import datetime
 import os
+import logging
+import re
+from datetime import datetime
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from openai import OpenAI
+from action_intents import handle_action_intents, normalize_user_input
 
 # Cấu hình logging
 logging.basicConfig(
@@ -19,233 +21,162 @@ logger = logging.getLogger(__name__)
 # Load biến môi trường
 load_dotenv()
 
-# Lấy API key
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    logger.error("OPENAI_API_KEY không được thiết lập trong .env")
-    raise ValueError("OPENAI_API_KEY không được thiết lập")
-
-client = OpenAI(api_key=api_key)
-
 # Kết nối MongoDB
 mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri:
-    logger.error("MONGO_URI không được thiết lập trong .env")
     raise ValueError("MONGO_URI không được thiết lập")
+mongo_client = MongoClient(mongo_uri)
+db = mongo_client["VHHT"]
+campaign_collection = db["campaigns"]
+phase_collection = db["phases"]
+phase_day_collection = db["phaseDays"]
+task_collection = db["tasks"]
+department_collection = db["departments"]
+user_collection = db["users"]
 
-try:
-    mongo_client = MongoClient(mongo_uri)
-    db = mongo_client["VHHT"]
-    campaign_collection = db["campaigns"]
-    donation_campaign_collection = db["donationCampaigns"]
-    donor_profile_collection = db["donorProfiles"]
-    user_collection = db["users"]
-    logger.info("Kết nối MongoDB thành công")
-except Exception as e:
-    logger.error(f"Lỗi kết nối MongoDB: {str(e)}")
-    raise
+# Kết nối OpenAI
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY không được thiết lập")
+client = OpenAI(api_key=api_key)
 
-# Hàm định dạng ngày
+# Biến toàn cục lưu campaign cuối cùng
+last_campaign = None
+
 def format_date(d):
     try:
         if isinstance(d, str):
             return datetime.strptime(d, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%d/%m/%Y")
         return d.strftime("%d/%m/%Y")
-    except Exception as e:
-        logger.warning(f"Lỗi định dạng ngày {d}: {str(e)}")
+    except:
         return str(d)
 
-# Hàm định dạng vị trí
-def format_location(loc):
-    if not loc or 'coordinates' not in loc:
-        logger.debug("Không có thông tin vị trí")
-        return "Không có thông tin vị trí."
-    return f"Địa chỉ: {loc.get('address', 'N/A')}, Tọa độ: {loc['coordinates']}"
+def extract_campaign_name(text: str):
+    """
+    Trích xuất tên chiến dịch từ câu, ví dụ:
+    "Chiến dịch trồng cây 2025 có bao nhiêu người tham gia"
+    → "Trồng cây 2025"
+    """
+    match = re.search(r"chiến dịch ([\w\s\d]+?)(?:[\?\.,]|$)", text.lower())
+    if match:
+        name = match.group(1).strip()
+        return name.title()
+    return None
 
-# Hàm định dạng tình nguyện viên
-def format_volunteers(volunteers):
-    if not volunteers:
-        logger.debug("Không có tình nguyện viên")
-        return "Không có tình nguyện viên."
-    return f"Tổng số: {len(volunteers)}, Trạng thái: {', '.join([v['status'] for v in volunteers[:3]])}" + \
-           (f" và {len(volunteers) - 3} người khác" if len(volunteers) > 3 else "")
 
-# Hàm định dạng donation campaign
-def format_donation_campaign(d):
-    return f"- Tiêu đề: {d['title']}\n" \
-           f"  Mô tả: {d.get('description', 'N/A')}\n" \
-           f"  Mục tiêu: {d['goalAmount']}\n" \
-           f"  Đã quyên góp: {d['currentAmount']}\n" \
-           f"  Trạng thái: {d.get('status', 'N/A')}\n" \
-           f"  Tình trạng duyệt: {d.get('approvalStatus', 'N/A')}"
+def get_campaign_by_name(name: str):
+    return campaign_collection.find_one({
+        "name": {"$regex": f"^{name}$", "$options": "i"},
+        "acceptStatus": "approved"
+    })
 
-# Hàm định dạng donor profile
-def format_donor_profile(d):
-    campaigns = d.get('donatedCampaigns', [])
-    return f"- Tổng số tiền đã quyên góp: {d['totalDonated']}\n" \
-           f"  Số chiến dịch đã tham gia: {len(campaigns)}\n" \
-           f"  Ẩn danh mặc định: {'Có' if d['anonymousDefault'] else 'Không'}"
+def build_campaign_context(campaign):
+    campaign_id = campaign["_id"]
+    # Tình nguyện viên
+    volunteers = campaign.get("volunteers", [])
+    status_summary = {}
+    for vol in volunteers:
+        status = vol.get("status", "unknown")
+        status_summary[status] = status_summary.get(status, 0) + 1
+    volunteer_info = ", ".join([f"{k}: {v}" for k, v in status_summary.items()])
 
-# Hàm định dạng user
-def format_user(u):
-    return f"- Họ tên: {u['fullName']}\n" \
-           f"  Email: {u['email']}\n" \
-           f"  Vai trò: {u['role']}\n" \
-           f"  Trạng thái: {u['status']}\n" \
-           f"  Số chiến dịch tham gia: {len(u.get('joinedCampaigns', []))}"
+    # Giai đoạn (phases)
+    phases = list(phase_collection.find({"campaignId": campaign_id}))
+    phase_info = "\n".join(
+        [f"- {p['name']} ({format_date(p['startDate'])} - {format_date(p['endDate'])})" for p in phases]
+    ) or "Không có giai đoạn nào cả."
 
-# Hàm chính để xử lý câu hỏi
+    # Tasks trong phaseDays
+    task_titles = []
+    for phase in phases:
+        phase_days = list(phase_day_collection.find({"phaseId": phase["_id"]}))
+        for day in phase_days:
+            tasks = list(task_collection.find({"phaseDayId": day["_id"]}))
+            for task in tasks:
+                task_titles.append(task.get("title", "(Không tên)"))
+    task_info = ", ".join(task_titles) or "Không có nhiệm vụ nào."
 
-def answer_user_question(user_input: str):
-    logger.info(f"Xử lý câu hỏi: {user_input}")
-    
-    user_input_lower = user_input.lower()
-    query = {}
-    intent = None
-    collection = campaign_collection
+    # Phòng ban
+    departments = list(department_collection.find({"campaignId": campaign_id}))
+    department_info = ", ".join([d["name"] for d in departments]) or "Không có phòng ban nào."
 
-    # Phân loại ý định câu hỏi
-    if any(keyword in user_input_lower for keyword in ["sắp tới", "upcoming", "sắp diễn ra"]):
-        intent = "query_upcoming_campaigns"
-        query = {"status": "upcoming"}
-    elif any(keyword in user_input_lower for keyword in ["đang chạy", "đang diễn ra", "in-progress"]):
-        intent = "query_active_campaigns"
-        query = {"status": "in-progress"}
-    elif any(keyword in user_input_lower for keyword in ["kết thúc", "completed"]):
-        intent = "query_completed_campaigns"
-        query = {"status": "completed"}
-    elif any(keyword in user_input_lower for keyword in ["ngân sách", "budget"]):
-        intent = "query_budget"
-        query = {}
-    elif any(keyword in user_input_lower for keyword in ["tình nguyện", "volunteer"]):
-        intent = "query_volunteers"
-        query = {"volunteers": {"$ne": []}}
-    elif any(keyword in user_input_lower for keyword in ["địa điểm", "vị trí", "location", "địa chỉ"]):
-        intent = "query_location"
-        query = {"location": {"$exists": True}}
-    elif any(keyword in user_input_lower for keyword in ["mô tả", "description"]):
-        intent = "query_description"
-        query = {"description": {"$ne": ""}}
-    elif any(keyword in user_input_lower for keyword in ["chứng nhận", "certificate"]):
-        intent = "query_certificates"
-        query = {"certificatesIssued": True}
-    elif any(keyword in user_input_lower for keyword in ["quyên góp", "donation", "donate"]):
-        intent = "query_donation_campaigns"
-        collection = donation_campaign_collection
-        query = {"status": "active"}
-    elif any(keyword in user_input_lower for keyword in ["nhà tài trợ", "donor", "tài trợ"]):
-        intent = "query_donor_profiles"
-        collection = donor_profile_collection
-        query = {}
-    elif any(keyword in user_input_lower for keyword in ["người dùng", "user", "thành viên"]):
-        intent = "query_users"
-        collection = user_collection
-        query = {}
-    else:
-        intent = "general_query"
-        logger.debug("Câu hỏi tổng quát, không sử dụng OpenAI để tự bịa")
+    return f"""
+Tên chiến dịch: {campaign.get('name')}
+Thời gian: {format_date(campaign.get('startDate'))} đến {format_date(campaign.get('endDate'))}
+Địa điểm: {campaign.get('location', {}).get('address', 'Không rõ')}
+Mô tả: {campaign.get('description', 'Không có mô tả')}
+Tình nguyện viên: {len(volunteers)} người ({volunteer_info})
+Chứng chỉ: {'Đã phát' if campaign.get('certificatesIssued') else 'Chưa phát'}
 
-    logger.info(f"Ý định: {intent}, Truy vấn MongoDB: {query}, Collection: {collection.name}")
+Giai đoạn:
+{phase_info}
 
-    # Trường hợp câu hỏi tổng quát: Không để OpenAI tự bịa
-    if intent == "general_query":
-        return "Xin lỗi nha, em chưa hiểu rõ câu hỏi hoặc không có dữ liệu phù hợp. Anh/chị hỏi cụ thể hơn về chiến dịch, quyên góp, nhà tài trợ, hoặc người dùng được không ạ?"
+Nhiệm vụ:
+{task_info}
 
-    # Truy vấn MongoDB
-    try:
-        docs = list(collection.find(query).limit(5))
-        logger.info(f"Tìm thấy {len(docs)} document trong MongoDB")
-        logger.debug(f"Dữ liệu truy xuất: {docs}")
-    except Exception as e:
-        logger.error(f"Lỗi truy vấn MongoDB: {str(e)}")
-        return "Có lỗi khi kết nối dữ liệu. Vui lòng thử lại sau nha!"
-
-    if not docs:
-        logger.warning(f"Không tìm thấy dữ liệu phù hợp cho câu hỏi: {user_input}")
-        return f"Không tìm thấy thông tin nào về {user_input} cả. Anh/chị thử hỏi cụ thể hơn nhé!"
-
-    # Tạo summary dựa trên collection
-    summary = ""
-    if collection == campaign_collection:
-        summary = "\n".join(
-            f"- Tên: {d['name']}\n"
-            f"  Trạng thái: {d.get('status', 'N/A')}\n"
-            f"  Thời gian: {format_date(d['startDate'])} đến {format_date(d['endDate'])}\n"
-            f"  Mô tả: {d.get('description', 'N/A')}\n"
-            f"  Vị trí: {format_location(d.get('location'))}\n"
-            f"  Tình nguyện viên: {format_volunteers(d.get('volunteers', []))}\n"
-            f"  Chứng nhận: {'Đã phát' if d.get('certificatesIssued', False) else 'Chưa phát'}"
-            for d in docs
-        )
-    elif collection == donation_campaign_collection:
-        summary = "\n".join(format_donation_campaign(d) for d in docs)
-    elif collection == donor_profile_collection:
-        summary = "\n".join(format_donor_profile(d) for d in docs)
-    elif collection == user_collection:
-        summary = "\n".join(format_user(d) for d in docs)
-
-    logger.debug(f"Summary dữ liệu: {summary}")
-
-    # Tạo schema cho prompt
-    schema = ""
-    if collection == campaign_collection:
-        schema = """Dữ liệu chiến dịch có các trường:
-- name: Tên chiến dịch (string)
-- description: Mô tả chiến dịch (string)
-- startDate: Ngày bắt đầu (Date)
-- endDate: Ngày kết thúc (Date)
-- location: Vị trí (address: string, coordinates: [number, number])
-- volunteers: Danh sách tình nguyện viên (user, status: pending/approved/rejected, evaluation, feedback)
-- certificatesIssued: Chứng nhận đã phát hành (boolean)
-- status: Trạng thái (upcoming, in-progress, completed)"""
-    elif collection == donation_campaign_collection:
-        schema = """Dữ liệu chiến dịch quyên góp có các trường:
-- title: Tiêu đề chiến dịch (string)
-- description: Mô tả chiến dịch (string)
-- goalAmount: Số tiền mục tiêu (number)
-- currentAmount: Số tiền hiện tại (number)
-- approvalStatus: Tình trạng duyệt (pending, approved, rejected)
-- status: Trạng thái (draft, active, completed)
-- createdBy: Người tạo (ObjectId, ref User)"""
-    elif collection == donor_profile_collection:
-        schema = """Dữ liệu hồ sơ nhà tài trợ có các trường:
-- userId: ID người dùng (ObjectId, ref User)
-- totalDonated: Tổng số tiền đã quyên góp (number)
-- donatedCampaigns: Danh sách chiến dịch đã quyên góp (campaignId, totalAmount)
-- anonymousDefault: Ẩn danh mặc định (boolean)"""
-    elif collection == user_collection:
-        schema = """Dữ liệu người dùng có các trường:
-- fullName: Họ tên (string)
-- email: Email (string)
-- phone: Số điện thoại (string)
-- role: Vai trò (user, admin, organization, manager)
-- status: Trạng thái (active, inactive)
-- joinedCampaigns: Danh sách chiến dịch tham gia (ObjectId, ref Campaign)
-- date_of_birth: Ngày sinh (Date)"""
-
-    prompt = f"""{schema}
-
-Dữ liệu truy xuất:
-{summary}
-
-Câu hỏi: {user_input}
-→ Trả lời bằng tiếng Việt với giọng điệu tự nhiên, thân thiện, gần gũi như một người bạn đang trò chuyện. Sử dụng các từ như "nha", "nhé", "hơi bị" để tăng tính sinh động, nhưng vẫn giữ được sự chuyên nghiệp. 
-→ Chỉ sử dụng thông tin từ dữ liệu trên, KHÔNG được suy đoán hoặc thêm thông tin ngoài. Nếu không có đủ thông tin, hãy nói một cách khéo léo như "Chưa có thông tin này nha, để mình kiểm tra thêm nhé!".
-→ Tránh lặp lại từ khóa như "trạng thái" hoặc "upcoming" một cách cứng nhắc, thay vào đó dùng cách diễn đạt tự nhiên như "sắp khởi động", "đang chạy", "đã xong".
+Phòng ban:
+{department_info}
 """
 
-    return call_openai_direct(prompt)
+def call_openai_rag(context: str, user_input: str):
+    prompt = f"""
+Dưới đây là thông tin về một chiến dịch thiện nguyện:
 
-def call_openai_direct(prompt: str) -> str:
-    logger.debug(f"Prompt cho OpenAI: {prompt}")
+{context}
+
+Câu hỏi của người dùng: "{user_input}"
+
+→ Trả lời bằng tiếng Việt tự nhiên, dễ thương, gần gũi như Gen Z. KHÔNG bịa đặt. Nếu thiếu thông tin thì nói kiểu: "Chưa rõ phần này nha, để mình tìm thêm!"
+
+"""
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}]
         )
-        answer = response.choices[0].message.content
-        logger.info(f"Phản hồi từ OpenAI: {answer}")
-        return answer
+        return response.choices[0].message.content
     except Exception as e:
-        logger.error(f"Lỗi khi gọi OpenAI: {str(e)}")
-        return "Em xin lỗi, có lỗi khi xử lý câu hỏi. Vui lòng thử lại nhé!"
+        logger.error(f"Lỗi gọi OpenAI: {e}")
+        return "Có lỗi khi gọi GPT"
+
+def answer_user_question(user_input: str):
+    global last_campaign
+
+    logger.info(f"Câu hỏi: {user_input}")
+    user_input_lower = normalize_user_input(user_input)
+
+    # Xử lý intent hành động (từ file action_intents.py)
+    action_response = handle_action_intents(user_input_lower)
+    if action_response:
+        return action_response
+
+    # Truy vấn danh sách campaign đang diễn ra
+    if "đang diễn ra" in user_input_lower or "đang chạy" in user_input_lower:
+        campaigns = list(campaign_collection.find({
+            "status": "in-progress",
+            "acceptStatus": "approved"
+        }).limit(5))
+        if not campaigns:
+            return "Hiện tại chưa có chiến dịch nào đang diễn ra."
+        reply = "Dưới đây là một vài chiến dịch đang hoạt động nè:\n"
+        for c in campaigns:
+            reply += f"🌱 {c['name']} (Từ {format_date(c['startDate'])} đến {format_date(c['endDate'])})\n"
+        last_campaign = campaigns[0]  # lưu campaign đầu tiên được liệt kê
+        reply += "Anh/chị muốn tìm hiểu thêm về chiến dịch nào thì cứ hỏi tiếp nha! 💬"
+        return reply
+
+    name = extract_campaign_name(user_input)
+    if name:
+        campaign = get_campaign_by_name(name)
+        if not campaign:
+            return f"Không tìm thấy chiến dịch nào tên '{name}' hoặc chưa được duyệt"
+        last_campaign = campaign
+        context = build_campaign_context(campaign)
+        return call_openai_rag(context, user_input)
+
+    # fallback nếu không có tên chiến dịch nhưng đã có last_campaign
+    if last_campaign:
+        context = build_campaign_context(last_campaign)
+        return call_openai_rag(context, user_input)
+
+    return "Em không biết anh/chị đang nói đến chiến dịch nào á 😅 Nói rõ tên giúp em nha!"
