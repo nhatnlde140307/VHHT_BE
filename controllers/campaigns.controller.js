@@ -18,6 +18,23 @@ export const getListCampaigns = async (req, res, next) => {
   }
 }
 
+export const getVolunteerCampaign = async (req, res, next) => {
+  try {
+    const userId = req.decoded_authorization.user_id;
+    const result = await campaignServices.getVolunteerListCampaigns(userId)
+    return res.status(HTTP_STATUS.OK).json({
+      message: CAMPAIGN_MESSAGE.GET_CAMPAIGN_SUCCESS,
+      result
+    })
+  } catch (error) {
+    console.error('Error getting campaigns:', error)
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      error: 'Can not get list campaign',
+      details: error.message
+    })
+  }
+}
+
 export const createCampaign = async (req, res, next) => {
   try {
     const userId = req.decoded_authorization.user_id;
@@ -133,6 +150,16 @@ export const acceptRequestHandler = async (req, res) => {
   try {
     const { campaignId, userId } = req.params
     const result = await campaignServices.acceptVolunteerInCampaign({ campaignId, userId })
+    res.json({ message: USER_MESSAGES.ACCEPT_CAMPAIGN_SUCCESS, result })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+
+export const rejectRequestHandler = async (req, res) => {
+  try {
+    const { campaignId, userId } = req.params
+    const result = await campaignServices.rejectVolunteerInCampaign({ campaignId, userId })
     res.json({ message: USER_MESSAGES.ACCEPT_CAMPAIGN_SUCCESS, result })
   } catch (error) {
     res.status(400).json({ message: error.message })

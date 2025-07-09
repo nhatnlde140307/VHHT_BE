@@ -5,48 +5,70 @@ import PhaseDay from '../models/phaseDay.model.js'
 
 async function createPhase({ campaignId, name, description, startDate, endDate }) {
     if (!mongoose.Types.ObjectId.isValid(campaignId)) {
-        throw new Error('campaignId không hợp lệ')
+        throw new Error('campaignId không hợp lệ');
     }
 
-    const campaign = await Campaign.findById(campaignId)
+    const campaign = await Campaign.findById(campaignId);
     if (!campaign) {
-        throw new Error('Không tìm thấy chiến dịch')
+        throw new Error('Không tìm thấy chiến dịch');
+    }
+
+    const phaseStart = new Date(startDate);
+    const phaseEnd = new Date(endDate);
+
+    if (phaseStart < campaign.startDate || phaseEnd > campaign.endDate) {
+        throw new Error(`Ngày bắt đầu và kết thúc của giai đoạn phải nằm trong khoảng từ ${campaign.startDate.toLocaleDateString()} đến ${campaign.endDate.toLocaleDateString()} của chiến dịch`);
     }
 
     const phase = new Phase({
         campaignId,
         name,
         description,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-    })
+        startDate: phaseStart,
+        endDate: phaseEnd,
+    });
 
-    await phase.save()
+    await phase.save();
 
     await Campaign.findByIdAndUpdate(campaignId, {
         $addToSet: { phases: phase._id }
-    })
+    });
 
-    return phase
+    return phase;
 }
 
 async function updatePhase(phaseId, payload) {
     if (!mongoose.Types.ObjectId.isValid(phaseId)) {
-        throw new Error('Phase ID không hợp lệ')
+        throw new Error('Phase ID không hợp lệ');
     }
 
-    const phase = await Phase.findById(phaseId)
-    if (!phase) throw new Error('Không tìm thấy giai đoạn')
+    const phase = await Phase.findById(phaseId);
+    if (!phase) throw new Error('Không tìm thấy giai đoạn');
 
-    const fields = ['name', 'description', 'startDate', 'endDate', 'status']
+    const campaign = await Campaign.findById(phase.campaignId);
+    if (!campaign) throw new Error('Không tìm thấy chiến dịch liên quan');
+
+    const newStart = payload.startDate ? new Date(payload.startDate) : phase.startDate;
+    const newEnd = payload.endDate ? new Date(payload.endDate) : phase.endDate;
+
+    if (newStart > newEnd) {
+        throw new Error('Ngày bắt đầu không được lớn hơn ngày kết thúc của giai đoạn');
+    }
+
+    if (newStart < campaign.startDate || newEnd > campaign.endDate) {
+        throw new Error(`Thời gian của giai đoạn phải nằm trong chiến dịch từ ${campaign.startDate.toLocaleDateString()} đến ${campaign.endDate.toLocaleDateString()}`);
+    }
+
+    const fields = ['name', 'description', 'startDate', 'endDate', 'status'];
     fields.forEach(field => {
         if (payload[field] !== undefined) {
-            phase[field] = payload[field]
+            phase[field] = payload[field];
         }
-    })
+    });
 
-    return await phase.save()
+    return await phase.save();
 }
+
 
 async function deletePhase(phaseId) {
     if (!mongoose.Types.ObjectId.isValid(phaseId)) {

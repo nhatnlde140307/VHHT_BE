@@ -72,6 +72,24 @@ class CampaignServices {
         }
     }
 
+    async getVolunteerListCampaigns(userId) {
+        try {
+            console.log(userId);
+            const volunteer = await User.findById(userId)
+                .populate('joinedCampaigns');
+
+            if (!volunteer) {
+                throw new Error('Volunteer not found');
+            }
+
+            return {
+                listCampaign: volunteer.joinedCampaigns
+            };
+        } catch (err) {
+            throw new Error(`Failed to get volunteer campaign list: ${err.message}`);
+        }
+    }
+
     async createCampaign(data, userId, campaignImg, gallery) {
         try {
             const {
@@ -247,7 +265,7 @@ class CampaignServices {
             if (!mongoose.Types.ObjectId.isValid(campaignId)) {
                 throw new Error('ID chiến dịch không hợp lệ')
             }
-
+            console.log(campaignImg)
             const campaign = await Campaign.findById(campaignId)
             if (!campaign) {
                 throw new Error('Không tìm thấy chiến dịch')
@@ -281,9 +299,10 @@ class CampaignServices {
                 }
             })
 
-            if (Array.isArray(campaignImg) && campaignImg.length > 0) {
-                campaign.campaignImg = campaignImg
+            if (typeof campaignImg === 'string' && campaignImg.trim() !== '') {
+                campaign.image = campaignImg
             }
+
 
             if (Array.isArray(gallery) && gallery.length > 0) {
                 campaign.gallery = [...(campaign.gallery || []), ...gallery]
@@ -406,6 +425,10 @@ class CampaignServices {
         volunteer.status = 'approved';
         await campaign.save();
 
+        const volunteerId = await User.findById(userId)
+        volunteerId.joinedCampaigns.push(campaignId)
+        await volunteerId.save()
+
         const user = await User.findById(userId);
         if (user) {
             const emailContent = {
@@ -430,6 +453,51 @@ class CampaignServices {
             campaign: campaign.name,
             user: user?.fullName || 'N/A',
             status: 'approved'
+        };
+    }
+
+    async rejectVolunteerInCampaign({ campaignId, userId }) {
+        const campaign = await Campaign.findById(campaignId);
+        if (!campaign) throw new Error('Không tìm thấy chiến dịch');
+
+        const volunteer = campaign.volunteers.find(v => v.user.toString() === userId);
+        if (!volunteer) throw new Error('Người dùng chưa đăng ký chiến dịch này');
+
+        if (volunteer.status === 'rejected') {
+            throw new Error('Người dùng đã bị từ chối trước đó');
+        }
+
+        volunteer.status = 'rejected';
+        await campaign.save();
+
+        const volunteerId = await User.findById(userId)
+        volunteerId.joinedCampaigns.push(campaignId)
+        await volunteerId.save()
+
+        const user = await User.findById(userId);
+        if (user) {
+            const emailContent = {
+                body: {
+                    name: user.fullName || user.email,
+                    intro: `Bạn đã bị từ chối tham gia chiến dịch "${campaign.name}.`,
+                    outro: 'Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.'
+                }
+            };
+
+            const mailBody = MailGenerator.generate(emailContent);
+
+            await transporter.sendMail({
+                from: process.env.EMAIL,
+                to: user.email,
+                subject: 'Xác nhận tham gia chiến dịch - VHHT',
+                html: mailBody
+            });
+        }
+
+        return {
+            campaign: campaign.name,
+            user: user?.fullName || 'N/A',
+            status: 'rejected'
         };
     }
 
@@ -459,6 +527,7 @@ class CampaignServices {
                 endDate: campaign.endDate.toLocaleDateString(),
                 tone: 'truyền cảm hứng'
             });
+            console.log(content)
 
             await axios.post('https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/', {
                 title: campaign.name,

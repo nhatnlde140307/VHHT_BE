@@ -6,9 +6,9 @@ import {
 import { getListCampaigns,getCampaignVolunteers,
         startCampaignHandler,createCampaign,
         deleteCampaign,getCampaignById,
-        acceptRequestHandler, updateCampaign,
+        acceptRequestHandler, updateCampaign,getVolunteerCampaign,
         registerCampaign,endCampaign,
-        approveCampaign,rejectCampaign
+        approveCampaign,rejectCampaign,rejectRequestHandler
       } from '../controllers/campaigns.controller.js'
 import uploadCloud from '../utils/cloudinary.config.js'
 import { getDepartmentsByCampaignId, createDepartment,
@@ -17,6 +17,8 @@ import { getDepartmentsByCampaignId, createDepartment,
 
 const campaignRoutes = express.Router()
 
+//get my campaign
+campaignRoutes.get('/me', accessTokenValidator, wrapRequestHandler(getVolunteerCampaign))
 
 //create campaign (staff, manager)
 campaignRoutes.post('/',uploadCloud.fields([
@@ -81,14 +83,14 @@ campaignRoutes.delete(
   wrapRequestHandler(removeMemberFromDepartment)
 )
 
-
-
+//volunteer register campaign
 campaignRoutes.post(
   '/:campaignId/register',
   accessTokenValidator,
   wrapRequestHandler(registerCampaign)
 );
 
+//get volunteer theo campaign
 campaignRoutes.get(
   '/:id/volunteers',
   accessTokenValidator,
@@ -96,10 +98,16 @@ campaignRoutes.get(
   wrapRequestHandler(getCampaignVolunteers)
 );
 
+//accept vonlunteer
 campaignRoutes.post('/:campaignId/accept/:userId', accessTokenValidator, organizationAndManagerValidator, wrapRequestHandler(acceptRequestHandler))
 
+//reject vonlunteer
+campaignRoutes.post('/:campaignId/reject/:userId', accessTokenValidator, organizationAndManagerValidator, wrapRequestHandler(rejectRequestHandler))
+
+//start campaign, post fb 
 campaignRoutes.put('/:campaignId/start', organizationAndManagerValidator, wrapRequestHandler(startCampaignHandler));
 
+//end campaign, render certification
 campaignRoutes.put('/:campaignId/end', organizationAndManagerValidator, wrapRequestHandler(endCampaign));
 
 export default campaignRoutes
