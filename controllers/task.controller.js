@@ -1,5 +1,14 @@
 import * as taskService from '../services/task.service.js';
 
+export const getTasksByPhaseDayId = async (req, res, next) => {
+    try {
+        const tasks = await taskService.getTasksByPhaseDayId(req.params.phaseDayId);
+        res.status(200).json({ success: true, message: 'Lấy danh sách task thành công', data: tasks });
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const createTask = async (req, res, next) => {
     try {
         const task = await taskService.createTask(req.params.phaseDayId, req.body);

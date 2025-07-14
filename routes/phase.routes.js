@@ -2,7 +2,7 @@ import express from 'express'
 import { createPhase, updatePhase, deletePhase, createPhaseDay, updatePhaseDay, deletePhaseDay, getPhasesByCampaignId } from '../controllers/phase.controller.js'
 import { organizationAndManagerValidator } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { createTask, updateTask, deleteTask } from '../controllers/task.controller.js';
+import { createTask, updateTask, deleteTask, getTasksByPhaseDayId } from '../controllers/task.controller.js';
 const phaseRouter = express.Router()
 
 // Lấy tất cả phase và phaseDay theo campaignId
@@ -32,6 +32,9 @@ phaseRouter.patch('/days/:phaseDayId', organizationAndManagerValidator, wrapRequ
 
 // Delete phaseday
 phaseRouter.delete('/days/:phaseDayId', organizationAndManagerValidator, wrapRequestHandler(deletePhaseDay))
+
+// Lấy tất cả task theo phaseDayId
+phaseRouter.get('/:phaseDayId/tasks', wrapRequestHandler(getTasksByPhaseDayId))
 
 // Tạo task
 phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask))

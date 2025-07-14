@@ -2,6 +2,18 @@ import Task from '../models/task.model.js';
 import PhaseDay from '../models/phaseDay.model.js';
 import mongoose from 'mongoose';
 
+export const getTasksByPhaseDayId = async (phaseDayId) => {
+    if (!mongoose.Types.ObjectId.isValid(phaseDayId)) {
+        throw new Error('ID phaseDay không hợp lệ');
+    }
+
+    const tasks = await Task.find({ phaseDayId })
+        .populate('assignedUsers.userId')
+        .lean();
+    
+    return tasks;
+};
+
 export const createTask = async (phaseDayId, data) => {
     if (!mongoose.Types.ObjectId.isValid(phaseDayId)) {
         throw new Error('ID phaseDay không hợp lệ');
