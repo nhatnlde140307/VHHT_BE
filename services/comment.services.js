@@ -89,7 +89,7 @@ class CommentServices {
                     recipient: repliedUserId,
                     title: 'Bình luận của bạn được phản hồi',
                     content: `${commenterName} đã trả lời bình luận của bạn.`,
-                    link: `/${refType}/${refId}#${parentComment}`,
+                    link: `/${refType}/${parentComment.refId}`,
                     type: 'comment_reply'
                 });
 

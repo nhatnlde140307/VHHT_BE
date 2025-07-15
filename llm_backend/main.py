@@ -111,12 +111,14 @@ async def register_face(user_id: str = Form(...), file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Lỗi tại /register: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý: {str(e)}")
+    
 # === Endpoint: Check-in khuôn mặt ===
 @app.post("/checkin")
 async def checkin_face(data: ImageData):
     try:
         camera_img = base64_to_image(data.image)
 
+        # 👉 Tính embedding từ ảnh
         embedding_info = DeepFace.represent(
             img_path=camera_img,
             model_name="ArcFace",
@@ -124,13 +126,14 @@ async def checkin_face(data: ImageData):
         )
         embedding_checkin = embedding_info[0]["embedding"]
 
+        # 👉 Lấy embedding gốc từ Mongo
         user = user_collection.find_one({"_id": ObjectId(data.user_id)})
         if not user or "faceDescriptor" not in user:
             raise HTTPException(status_code=404, detail="❌ Không tìm thấy khuôn mặt đã đăng ký.")
 
         embedding_registered = user["faceDescriptor"]
 
-        # Hàm tính khoảng cách cosine
+        # 👉 Tính khoảng cách cosine
         from numpy.linalg import norm
         def cosine_distance(a, b):
             a = np.array(a)
@@ -140,9 +143,45 @@ async def checkin_face(data: ImageData):
         distance = cosine_distance(embedding_checkin, embedding_registered)
 
         if distance < 0.35:
-            return {"status": "✅ Check-in thành công!", "distance": distance}
+            # ✅ Gọi sang NodeJS để lưu checkin
+            import httpx
+            async with httpx.AsyncClient() as client:
+                payload = {
+                    "userId": data.user_id,
+                    "campaignId": data.campaign_id,
+                    "phaseId": data.phase_id,
+                    "phasedayId": data.phaseday_id,
+                    "method": "face"
+                }
+
+                res = await client.post("http://localhost:4000/checkin", json=payload)
+
+                if res.status_code == 201:
+                    return {
+                        "status": "✅ Check-in thành công!",
+                        "distance": distance,
+                        "saved": True
+                    }
+                elif res.status_code == 409:
+                    return {
+                        "status": "⚠️ Hôm nay checkin rồi á nha!",
+                        "distance": distance,
+                        "saved": False
+                    }
+                else:
+                    return {
+                        "status": "✅ Nhận diện ok nhưng lỗi lưu!",
+                        "distance": distance,
+                        "saved": False,
+                        "server_msg": res.text
+                    }
+
         else:
-            return {"status": f"🚫 Không khớp khuôn mặt! (Khoảng cách: {distance:.4f})", "distance": distance}
+            return {
+                "status": f"🚫 Không khớp khuôn mặt! (Khoảng cách: {distance:.4f})",
+                "distance": distance,
+                "saved": False
+            }
 
     except Exception as e:
         logger.error(f"Lỗi tại /checkin: {e}")

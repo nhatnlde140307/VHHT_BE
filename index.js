@@ -55,7 +55,7 @@ app.get('/', async (req, res) => {
 app.use('/users', usersRouter)
 app.use('/payments', paymentsRoutes)
 app.use('/campaigns', campaignRoutes)
-app.use('/checkins', checkinRoutes)
+app.use('/checkin', checkinRoutes)
 app.use('/ai', aiRouter)
 app.use('/cloud', uploadRouter)
 app.use('/news', newsPostRoutes)
