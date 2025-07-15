@@ -207,3 +207,35 @@ export const changePasswordController = async (req, res, next) => {
     return res.status(500).json({ message: error.message })
   }
 }
+
+export const getSkillByUserId = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const skills = await usersService.getSkillsByUserId(id)
+    return res.status(200).json({ data: skills })
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
+  }
+}
+
+export const addSkillsToUsers = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { skills } = req.body
+    const user = await usersService.addSkills(id, skills)
+    return res.status(200).json({ message: 'Skills added successfully', data: user })
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
+  }
+}
+
+export const updateSkillsOfUsers = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { skills } = req.body
+    const user = await usersService.updateSkills(id, skills)
+    return res.status(200).json({ message: 'Skills updated successfully', data: user })
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
+  }
+}

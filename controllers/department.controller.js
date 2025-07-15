@@ -12,6 +12,25 @@ export const getDepartmentsByCampaignId = async (req, res) => {
   }
 };
 
+export const getDepartmentByVolunteer = async (req, res) => {
+  try {
+    const { volunteerId } = req.params;
+    const departments = await departmentService.getDepartmentByVolunteer(volunteerId);
+    res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách phòng ban theo tình nguyện viên thành công',
+      data: departments
+    });
+  } catch (error) {
+    console.error('❌ Lỗi khi lấy danh sách phòng ban theo tình nguyện viên:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Lấy danh sách phòng ban thất bại',
+      error: error.message
+    });
+  }
+};
+
 export const createDepartment = async (req, res) => {
   try {
     const { campaignId } = req.params

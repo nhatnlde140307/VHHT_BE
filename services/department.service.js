@@ -10,6 +10,18 @@ export const departmentService = {
     return await Department.find({ campaignId });
   },
 
+  async getDepartmentByVolunteer(volunteerId) {
+    if (!mongoose.Types.ObjectId.isValid(volunteerId)) {
+      throw new Error("ID tình nguyện viên không hợp lệ");
+    }
+
+    const departments = await Department.find({
+      memberIds: { $in: [volunteerId] },
+    });
+
+    return departments;
+  },
+
   async createDepartment({
     campaignId,
     name,

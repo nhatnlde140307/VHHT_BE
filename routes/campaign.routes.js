@@ -13,7 +13,7 @@ import { getListCampaigns,getCampaignVolunteers,
 import uploadCloud from '../utils/cloudinary.config.js'
 import { getDepartmentsByCampaignId, createDepartment,
   updateDepartment,addMemberToDepartment,removeMemberFromDepartment,
-  deleteDepartment } from '../controllers/department.controller.js'
+  deleteDepartment, getDepartmentByVolunteer } from '../controllers/department.controller.js'
 
 const campaignRoutes = express.Router()
 
@@ -46,7 +46,15 @@ campaignRoutes.put('/:campaignId/approve', managerValidator, wrapRequestHandler(
 //reject chiến dịch
 campaignRoutes.put('/:campaignId/reject', managerValidator, wrapRequestHandler(rejectCampaign));
 
+// lay department theo campaign
 campaignRoutes.get('/:campaignId/departments', wrapRequestHandler(getDepartmentsByCampaignId));
+
+// lay department theo volunteer
+campaignRoutes.get(
+  '/departments/volunteer/:volunteerId',
+  organizationAndManagerValidator,
+  wrapRequestHandler(getDepartmentByVolunteer)
+);
 
 //tao phong ban
 campaignRoutes.post(
