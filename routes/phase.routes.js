@@ -1,8 +1,8 @@
 import express from 'express'
 import { createPhase, updatePhase, deletePhase, createPhaseDay, updatePhaseDay, deletePhaseDay, getPhasesByCampaignId } from '../controllers/phase.controller.js'
-import { organizationAndManagerValidator } from '../middlewares/users.middlewares.js'
+import { organizationAndManagerValidator, accessTokenValidator } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { createTask, updateTask, deleteTask, getTasksByPhaseDayId } from '../controllers/task.controller.js';
+import { createTask, updateTask, deleteTask, getTasksByPhaseDayId,getTasksByUserAndCampaign } from '../controllers/task.controller.js';
 const phaseRouter = express.Router()
 
 // Lấy tất cả phase và phaseDay theo campaignId
@@ -35,6 +35,9 @@ phaseRouter.delete('/days/:phaseDayId', organizationAndManagerValidator, wrapReq
 
 // Lấy tất cả task theo phaseDayId
 phaseRouter.get('/:phaseDayId/tasks', wrapRequestHandler(getTasksByPhaseDayId))
+
+// Lấy tất cả task theo của user theo campaignId
+phaseRouter.get('/:phaseDayId/tasks', accessTokenValidator, wrapRequestHandler(getTasksByUserAndCampaign))
 
 // Tạo task
 phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask))

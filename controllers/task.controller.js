@@ -35,3 +35,21 @@ export const deleteTask = async (req, res, next) => {
         next(err);
     }
 };
+
+export const getTasksByUserAndCampaign = async (req, res, next) => {
+  try {
+    const userId = req.decoded_authorization.user_id;
+    const { campaignId } = req.query;
+
+    const tasks = await taskService.getTasksByUserAndCampaign(userId, campaignId);
+
+    res.status(200).json({
+      message: 'Tasks retrieved successfully',
+      data: tasks,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+}
+

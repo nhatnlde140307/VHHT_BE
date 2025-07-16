@@ -1,6 +1,7 @@
 import Task from '../models/task.model.js';
 import PhaseDay from '../models/phaseDay.model.js';
 import mongoose from 'mongoose';
+import Phase from '../models/phase.model.js'
 
 export const getTasksByPhaseDayId = async (phaseDayId) => {
     if (!mongoose.Types.ObjectId.isValid(phaseDayId)) {
@@ -10,7 +11,7 @@ export const getTasksByPhaseDayId = async (phaseDayId) => {
     const tasks = await Task.find({ phaseDayId })
         .populate('assignedUsers.userId')
         .lean();
-    
+
     return tasks;
 };
 
@@ -59,4 +60,94 @@ export const deleteTask = async (taskId) => {
 
     await task.deleteOne();
     return { message: 'Xoá task thành công' };
+};
+
+export const getTasksByUserAndCampaign = async (userId, campaignId) => {
+    // Kiểm tra userId và campaignId hợp lệ
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        const error = new Error('Invalid userId');
+        error.status = 400;
+        throw error;
+    }
+    if (!mongoose.Types.ObjectId.isValid(campaignId)) {
+        const error = new Error('Invalid campaignId');
+        error.status = 400;
+        throw error;
+    }
+
+    // Tìm các phase thuộc campaignId
+    const phases = await Phase.find({ campaignId }).select('_id');
+
+    if (!phases || phases.length === 0) {
+        const error = new Error('No phases found for this campaign');
+        error.status = 404;
+        throw error;
+    }
+
+    const phaseIds = phases.map(phase => phase._id);
+
+    const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).select('_id');
+
+    if (!phaseDays || phaseDays.length === 0) {
+        const error = new Error('No phase days found for this campaign');
+        error.status = 404;
+        throw error;
+    }
+
+    const phaseDayIds = phaseDays.map(phaseDay => phaseDay._id);
+
+    const tasks = await Task.find({
+        'assignedUsers.userId': userId,
+        phaseDayId: { $in: phaseDayIds },
+    })
+        .populate({
+            path: 'phaseDayId',
+            select: 'date checkinLocation status',
+            populate: {
+                path: 'phaseId',
+                select: 'name startDate endDate status campaignId',
+                populate: {
+                    path: 'campaignId',
+                    select: 'name startDate endDate status',
+                },
+            },
+        })
+        .select('title description status checkinTime checkoutTime');
+
+    if (!tasks || tasks.length === 0) {
+        const error = new Error('No tasks found for this user in the specified campaign');
+        error.status = 404;
+        throw error;
+    }
+
+    const formattedTasks = tasks.map(task => ({
+        taskId: task._id,
+        title: task.title,
+        description: task.description,
+        status: task.status.status,
+        submittedAt: task.status.submittedAt,
+        feedback: task.status.feedback,
+        evaluation: task.status.evaluation,
+        checkinTime: task.assignedUsers.find(user => user.userId.toString() === userId)?.checkinTime,
+        checkoutTime: task.assignedUsers.find(user => user.userId.toString() === userId)?.checkoutTime,
+        phaseDay: {
+            date: task.phaseDayId?.date,
+            location: task.phaseDayId?.checkinLocation,
+            status: task.phaseDayId?.status,
+        },
+        phase: {
+            name: task.phaseDayId?.phaseId?.name,
+            startDate: task.phaseDayId?.phaseId?.startDate,
+            endDate: task.phaseDayId?.phaseId?.endDate,
+            status: task.phaseDayId?.phaseId?.status,
+        },
+        campaign: {
+            name: task.phaseDayId?.phaseId?.campaignId?.name,
+            startDate: task.phaseDayId?.phaseId?.campaignId?.startDate,
+            endDate: task.phaseDayId?.phaseId?.campaignId?.endDate,
+            status: task.phaseDayId?.phaseId?.campaignId?.status,
+        },
+    }));
+
+    return formattedTasks;
 };

@@ -58,6 +58,10 @@ class ChatData(BaseModel):
 class ImageData(BaseModel):
     user_id: str
     image: str  # base64 encoded image
+    campaignId: str
+    phaseId: str
+    phasedayId: str
+    method: str
 
 # === Helper: base64 → numpy image array ===
 def base64_to_image(base64_str):
@@ -118,7 +122,6 @@ async def checkin_face(data: ImageData):
     try:
         camera_img = base64_to_image(data.image)
 
-        # 👉 Tính embedding từ ảnh
         embedding_info = DeepFace.represent(
             img_path=camera_img,
             model_name="ArcFace",
@@ -126,14 +129,12 @@ async def checkin_face(data: ImageData):
         )
         embedding_checkin = embedding_info[0]["embedding"]
 
-        # 👉 Lấy embedding gốc từ Mongo
         user = user_collection.find_one({"_id": ObjectId(data.user_id)})
         if not user or "faceDescriptor" not in user:
             raise HTTPException(status_code=404, detail="❌ Không tìm thấy khuôn mặt đã đăng ký.")
 
         embedding_registered = user["faceDescriptor"]
 
-        # 👉 Tính khoảng cách cosine
         from numpy.linalg import norm
         def cosine_distance(a, b):
             a = np.array(a)
@@ -143,14 +144,13 @@ async def checkin_face(data: ImageData):
         distance = cosine_distance(embedding_checkin, embedding_registered)
 
         if distance < 0.35:
-            # ✅ Gọi sang NodeJS để lưu checkin
             import httpx
             async with httpx.AsyncClient() as client:
                 payload = {
                     "userId": data.user_id,
-                    "campaignId": data.campaign_id,
-                    "phaseId": data.phase_id,
-                    "phasedayId": data.phaseday_id,
+                    "campaignId": data.campaignId,  
+                    "phaseId": data.phaseId,        
+                    "phasedayId": data.phasedayId,  
                     "method": "face"
                 }
 
@@ -186,7 +186,7 @@ async def checkin_face(data: ImageData):
     except Exception as e:
         logger.error(f"Lỗi tại /checkin: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi nhận diện: {str(e)}")
-
+    
 # === Endpoint: Chatbot ===
 @app.post("/chat")
 async def chat(data: ChatData):
