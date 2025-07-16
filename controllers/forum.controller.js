@@ -8,7 +8,7 @@ import { cloudinary } from "../utils/cloudinary.config.js";
  */
 export const createNewForumPost = async (req, res) => {
   try {
-    const images = req.files?.map((file) => file.path) || [];
+    const images = req.body.images || [];
     const userId = req.decoded_authorization.user_id;
     const data = {
       ...req.body,
@@ -33,7 +33,7 @@ export const updateForumPost = async (req, res) => {
     const updateData = { ...req.body };
 
     // Remove old images
-    if (req.files && req.files.length > 0) {
+    if (req.body.images && req.body.images.length > 0) {
       const existing = await forumServices.findById(postId);
       if (!existing) return res.status(404).json({ error: "News not found" });
 
@@ -44,7 +44,7 @@ export const updateForumPost = async (req, res) => {
       }
 
       // Assign new images
-      updateData.images = req.files.map((f) => f.path);
+      updateData.images = req.body.images || [];
     }
 
     const updated = await forumServices.updateById(postId, updateData);

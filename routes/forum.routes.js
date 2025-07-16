@@ -1,6 +1,5 @@
 import express from "express";
 import { wrapRequestHandler } from "../utils/handlers.js";
-import uploadCloud from "../utils/cloudinary.config.js";
 import { accessTokenValidator } from "../middlewares/users.middlewares.js";
 import {
   commentForumPost,
@@ -29,6 +28,7 @@ import {
   upvoteForumPostComment,
   getForumPostDetail,
 } from "../controllers/forum.controller.js";
+import { imagesUploader } from "../middlewares/images.middlewares.js";
 
 const forumRoutes = express.Router();
 
@@ -39,14 +39,20 @@ const forumRoutes = express.Router();
 forumRoutes.post(
   "/",
   accessTokenValidator,
-  uploadCloud.array("images", 5),
+  imagesUploader({
+    field: "images",
+    max: 5,
+  }),
   wrapRequestHandler(createNewForumPost)
 );
 // Update an existing forum post
 forumRoutes.put(
   "/:postId",
   accessTokenValidator,
-  uploadCloud.array("images", 5),
+  imagesUploader({
+    field: "images",
+    max: 5,
+  }),
   wrapRequestHandler(updateForumPost)
 );
 // Delete a forum post
