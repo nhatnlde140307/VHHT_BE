@@ -188,10 +188,6 @@ class ForumService {
       // Sort by newest first
       { $sort: { createdAt: -1 } },
 
-      // Apply pagination
-      { $skip: skip },
-      { $limit: limit },
-
       // Join tags from the Category collection
       {
         $lookup: {

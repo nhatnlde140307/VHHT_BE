@@ -37,7 +37,7 @@ const server = http.createServer(app) // ✅ tạo server để dùng socket
 const port = 4000
 
 databaseServices.connect()
-app.use(bodyParser.json())
+app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(cors({

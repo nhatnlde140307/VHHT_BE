@@ -88,7 +88,7 @@ export const deleteForumPost = async (req, res) => {
 export const getNewForumPosts = async (req, res) => {
   try {
     const searchUserId = req.decoded_authorization.user_id;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query || {};
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -101,11 +101,7 @@ export const getNewForumPosts = async (req, res) => {
       +limit
     );
 
-    if (!deleted) {
-      return res.status(404).json({ error: "Forum post not found" });
-    }
-
-    res.json(posts);
+    res.json({ data: posts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -121,7 +117,7 @@ export const getRelativeForumPosts = async (req, res) => {
   try {
     const searchUserId = req.decoded_authorization.user_id;
     const userId = req.decoded_authorization.user_id;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -155,7 +151,7 @@ export const getSavedForumPosts = async (req, res) => {
   try {
     const searchUserId = req.decoded_authorization.user_id;
     const userId = req.decoded_authorization.user_id;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -189,7 +185,7 @@ export const getUserForumPosts = async (req, res) => {
   try {
     const searchUserId = req.decoded_authorization.user_id;
     const { userId } = req.params;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -203,11 +199,9 @@ export const getUserForumPosts = async (req, res) => {
       +limit
     );
 
-    if (!deleted) {
-      return res.status(404).json({ error: "Forum post not found" });
-    }
-
-    res.json(posts);
+    res.json({
+      data: posts,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -229,7 +223,7 @@ export const getForumPostDetail = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({ data: post });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -251,7 +245,9 @@ export const upvoteForumPost = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -273,7 +269,9 @@ export const downvoteForumPost = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -295,7 +293,9 @@ export const unvoteForumPost = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -325,7 +325,7 @@ export const saveForumPost = async (req, res) => {
 export const getUpvotePostUsers = async (req, res) => {
   try {
     const { postId } = req.params;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -347,7 +347,7 @@ export const getUpvotePostUsers = async (req, res) => {
 export const getDownvotePostUsers = async (req, res) => {
   try {
     const { postId } = req.params;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -375,7 +375,7 @@ export const commentForumPost = async (req, res) => {
       userId,
       content
     );
-    res.json(comment);
+    res.json({ data: comment });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -392,7 +392,7 @@ export const commentForumPostComment = async (req, res) => {
       userId,
       content
     );
-    res.json(comment);
+    res.json({ data: comment });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -436,7 +436,9 @@ export const upvoteForumPostComment = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -461,7 +463,9 @@ export const downvoteForumPostComment = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -483,7 +487,9 @@ export const unvoteForumPostComment = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json(post);
+    res.json({
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -493,7 +499,7 @@ export const getForumPostComments = async (req, res) => {
   try {
     const { postId } = req.params;
     const searchUserId = req.decoded_authorization.user_id;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query || {};
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -507,7 +513,7 @@ export const getForumPostComments = async (req, res) => {
       +limit
     );
 
-    res.json(comments);
+    res.json({ data: comments });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -517,7 +523,7 @@ export const getForumPostCommentRelies = async (req, res) => {
   try {
     const { commentId } = req.params;
     const searchUserId = req.decoded_authorization.user_id;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -531,7 +537,7 @@ export const getForumPostCommentRelies = async (req, res) => {
       +limit
     );
 
-    res.json(comments);
+    res.json({ data: comments });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -545,7 +551,7 @@ export const getForumPostCommentRelies = async (req, res) => {
 export const getUpvotePostCommentUsers = async (req, res) => {
   try {
     const { commentId } = req.params;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
@@ -571,7 +577,7 @@ export const getUpvotePostCommentUsers = async (req, res) => {
 export const getDownvotePostCommentUsers = async (req, res) => {
   try {
     const { commentId } = req.params;
-    let { skip, limit } = req.queries;
+    let { skip, limit } = req.query;
     if (skip == null || isNaN(+skip)) {
       skip = 0;
     }
