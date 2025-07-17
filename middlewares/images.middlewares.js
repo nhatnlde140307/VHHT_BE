@@ -68,11 +68,8 @@ export const imagesUploader = (value) => {
         if (input.length > max) {
           return next(new Error("Max images reached"));
         }
-        const urls = [];
-        for (const i of input) {
-          const url = await uploadSingleImage(i);
-          urls.push(url);
-        }
+        const urls = await Promise.all(input.map(i => uploadSingleImage(i)));
+
         body[assign] = urls;
       }
     }

@@ -38,8 +38,8 @@ export const getVolunteerCampaign = async (req, res, next) => {
 export const createCampaign = async (req, res, next) => {
   try {
     const userId = req.decoded_authorization.user_id;
-    const campaignImg = req.files?.campaignImg?.[0]?.path || null;
-    const gallery = req.files?.gallery?.map(file => file.path) || [];
+    const campaignImg = req.body?.campaignImg || null;
+    const gallery = req.body?.gallery || [];
     const campaign = await campaignServices.createCampaign(req.body, userId, campaignImg, gallery);
 
     return res.status(201).json({
@@ -87,8 +87,8 @@ export const getCampaignById = async (req, res) => {
 export const updateCampaign = async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const campaignImg = req.files?.campaignImg?.[0]?.path || null;
-    const gallery = req.files?.gallery?.map(file => file.path) || [];
+    const campaignImg = req.body?.campaignImg || null;
+    const gallery = req.body?.gallery || [];
     const result = await campaignServices.updateCampaign(campaignId, req.body, campaignImg, gallery);
     res.status(200).json(result);
   } catch (err) {

@@ -3,21 +3,26 @@ import { createDonationCampaign, getDonateById, getDonationCampaigns,updateDonat
 import { organizationValidator, managerValidator, organizationAndManagerValidator } from '../middlewares/users.middlewares.js';
 import { wrapRequestHandler } from '../utils/handlers.js';
 import uploadCloud from '../utils/cloudinary.config.js';
+import { imagesUploader } from "../middlewares/images.middlewares.js";
 const donateRouter = express.Router();
 
 donateRouter.get('/', getDonationCampaigns);
 
 donateRouter.get('/:id', getDonateById);
 
-donateRouter.post('/', organizationAndManagerValidator,
-    uploadCloud.fields([
-        { name: 'thumbnail', maxCount: 1 },
-        { name: 'images', maxCount: 10 }]), wrapRequestHandler(createDonationCampaign));
+donateRouter.post(
+  "/",
+  organizationAndManagerValidator,
+  imagesUploader(["thumbnail", { field: "images", max: 10 }]),
+  wrapRequestHandler(createDonationCampaign)
+);
 
-donateRouter.put('/:donationCampaignId', organizationAndManagerValidator,
-    uploadCloud.fields([
-        { name: 'thumbnail', maxCount: 1 },
-        { name: 'images', maxCount: 10 }]), wrapRequestHandler(updateDonationCampaign));
+donateRouter.put(
+  "/:donationCampaignId",
+  organizationAndManagerValidator,
+  imagesUploader(["thumbnail", { field: "images", max: 10 }]),
+  wrapRequestHandler(updateDonationCampaign)
+);
 
 
 donateRouter.put('/:id/approve', managerValidator, wrapRequestHandler(approveDonationCampaign));
