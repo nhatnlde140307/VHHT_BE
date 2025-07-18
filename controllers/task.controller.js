@@ -1,4 +1,5 @@
 import * as taskService from '../services/task.service.js';
+import { sendNotificationToUser } from '../socket/socket.js';
 
 export const getTasksByPhaseDayId = async (req, res, next) => {
     try {
@@ -82,7 +83,7 @@ export const submitTask = async (req, res, next) => {
         const { taskId } = req.params;
         const { content } = req.body;
         const images = req.files?.map(file => file.path) || [];
-        const userId = req.decoded_authorization.user_id; 
+        const userId = req.decoded_authorization.user_id;
 
         const updatedTask = await taskService.submitTaskService(taskId, userId, content, images);
 
@@ -96,5 +97,43 @@ export const submitTask = async (req, res, next) => {
             return res.status(error.status).json({ message: error.message });
         }
         res.status(500).json({ message: 'Lỗi server khi nộp submission' });
+    }
+};
+
+export const reviewTask = async (req, res, next) => {
+    try {
+        const { taskId, userId } = req.params;
+        const { status, evaluation, staffComment } = req.body;
+        const staffId = req.decoded_authorization.user_id; // Từ middleware auth
+
+        const updatedTask = await taskService.reviewTaskService(taskId, userId, staffId, status, evaluation, staffComment);
+
+        const notification = {
+            type: 'task_review',
+            message: `Task ${taskId} của bạn đã được review: ${status}`,
+            data: {
+                taskId,
+                status,
+                evaluation,
+                staffComment,
+                reviewedAt: new Date()
+            }
+        };
+        try {
+            sendNotificationToUser(userId, notification);
+        } catch (err) {
+            console.warn('Không thể gửi notification:', err.message);
+        }
+
+        res.status(200).json({
+            message: 'Review task thành công',
+            task: updatedTask
+        });
+    } catch (error) {
+        console.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Lỗi server khi review task' });
     }
 };

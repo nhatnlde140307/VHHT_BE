@@ -159,3 +159,38 @@ export const submitTaskService = async (taskId, userId, content, images) => {
 
     return task;
 };
+
+export const reviewTaskService = async (taskId, userId, staffId, status, evaluation, staffComment) => {
+  const task = await Task.findById(taskId);
+  if (!task) {
+    throw { status: 404, message: 'Task không tồn tại' };
+  }
+
+  const assignedUser = task.assignedUsers.find(au => au.userId.toString() === userId.toString());
+  if (!assignedUser) {
+    throw { status: 404, message: 'User không được assigned cho task này' };
+  }
+
+  if (!assignedUser.submission || !assignedUser.submission.submittedAt) {
+    throw { status: 400, message: 'Submission chưa được nộp, không thể review' };
+  }
+
+  if (assignedUser.review.status !== 'pending') {
+    throw { status: 400, message: 'Task này đã được review' };
+  }
+
+  // Update review
+  assignedUser.review = {
+    status: status || 'approved',  
+    evaluation: evaluation || 'average',  
+    staffComment: staffComment || '',
+    reviewedBy: staffId,
+    reviewedAt: new Date()
+  };
+
+  await task.save();
+
+  return task;
+};
+
+

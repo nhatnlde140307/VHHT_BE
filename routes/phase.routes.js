@@ -2,7 +2,7 @@ import express from 'express'
 import { createPhase, updatePhase, deletePhase, createPhaseDay, updatePhaseDay, deletePhaseDay, getPhasesByCampaignId, startPhase } from '../controllers/phase.controller.js'
 import { organizationAndManagerValidator, accessTokenValidator } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { createTask, updateTask, deleteTask, getTasksByPhaseDayId,getTasksByUserAndCampaign,submitTask } from '../controllers/task.controller.js';
+import { createTask, updateTask, deleteTask, getTasksByPhaseDayId,getTasksByUserAndCampaign,submitTask,reviewTask } from '../controllers/task.controller.js';
 import uploadCloud from '../utils/cloudinary.config.js';
 const phaseRouter = express.Router()
 
@@ -54,6 +54,9 @@ phaseRouter.delete('/tasks/:taskId', wrapRequestHandler(deleteTask))
 
 //User nop submitsion 
 phaseRouter.post('/tasks/:taskId/submit', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(submitTask))
+
+//staff review tasksubmitsion
+phaseRouter.post('/tasks/:taskId/review/:userId', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(reviewTask))
 
 
 export default phaseRouter
