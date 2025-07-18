@@ -1,40 +1,62 @@
 import express from 'express'
-import { createPhase, updatePhase, deletePhase,createPhaseDay,updatePhaseDay,deletePhaseDay } from '../controllers/phase.controller.js'
-import { organizationAndManagerValidator } from '../middlewares/users.middlewares.js'
+import { createPhase, updatePhase, deletePhase, createPhaseDay, updatePhaseDay, deletePhaseDay, getPhasesByCampaignId, startPhase } from '../controllers/phase.controller.js'
+import { organizationAndManagerValidator, accessTokenValidator } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { createTask, updateTask, deleteTask } from '../controllers/task.controller.js';
+import { createTask, updateTask, deleteTask, getTasksByPhaseDayId,getTasksByUserAndCampaign,submitTask,reviewTask } from '../controllers/task.controller.js';
+import uploadCloud from '../utils/cloudinary.config.js';
 const phaseRouter = express.Router()
 
-//tao phase
+// Lấy tất cả phase và phaseDay theo campaignId
+phaseRouter.get(
+  '/:campaignId/phases',
+  wrapRequestHandler(getPhasesByCampaignId)
+)
+
+// Tạo phase
 phaseRouter.post(
-  '/campaigns/:campaignId/phases',
+  '/:campaignId/phases',
   organizationAndManagerValidator,
   wrapRequestHandler(createPhase)
 )
 
-//update phase
+// Update phase
 phaseRouter.put('/:phaseId', organizationAndManagerValidator, wrapRequestHandler(updatePhase))
 
-//xoa phase
+// Xóa phase
 phaseRouter.delete('/:phaseId', organizationAndManagerValidator, wrapRequestHandler(deletePhase))
 
-//tao phaseday
-phaseRouter.post('/:phaseId/days',organizationAndManagerValidator, wrapRequestHandler(createPhaseDay))
+//start phase
+phaseRouter.put('/:phaseId/start',organizationAndManagerValidator, wrapRequestHandler(startPhase) )
 
-//update phaseday
-phaseRouter.patch('/days/:phaseDayId',organizationAndManagerValidator, wrapRequestHandler(updatePhaseDay))
+// Tạo phaseday
+phaseRouter.post('/:phaseId/days', organizationAndManagerValidator, wrapRequestHandler(createPhaseDay))
 
-//delete phaseday
-phaseRouter.patch('/days/:phaseDayId',organizationAndManagerValidator, wrapRequestHandler(deletePhaseDay))
+// Update phaseday
+phaseRouter.patch('/days/:phaseDayId', organizationAndManagerValidator, wrapRequestHandler(updatePhaseDay))
 
-//tao task
-phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask));
+// Delete phaseday
+phaseRouter.delete('/days/:phaseDayId', organizationAndManagerValidator, wrapRequestHandler(deletePhaseDay))
 
-//update task
-phaseRouter.patch('/tasks/:taskId', wrapRequestHandler(updateTask));
+// Lấy tất cả task theo phaseDayId
+phaseRouter.get('/:phaseDayId/tasks', wrapRequestHandler(getTasksByPhaseDayId))
 
-//delete task
-phaseRouter.delete('/tasks/:taskId', wrapRequestHandler(deleteTask));
+// Lấy tất cả task theo của user theo campaignId
+phaseRouter.get('/:campaignId/task/me', accessTokenValidator, wrapRequestHandler(getTasksByUserAndCampaign))
+
+// Tạo task
+phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask))
+
+// Update task
+phaseRouter.patch('/tasks/:taskId', wrapRequestHandler(updateTask))
+
+// Delete task
+phaseRouter.delete('/tasks/:taskId', wrapRequestHandler(deleteTask))
+
+//User nop submitsion 
+phaseRouter.post('/tasks/:taskId/submit', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(submitTask))
+
+//staff review tasksubmitsion
+phaseRouter.post('/tasks/:taskId/review/:userId', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(reviewTask))
 
 
 export default phaseRouter

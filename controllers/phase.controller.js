@@ -27,7 +27,8 @@ export const updatePhase = async (req, res) => {
     name,
     description,
     startDate,
-    endDate,status
+    endDate,
+    status
   })
 
   return res.status(200).json({
@@ -98,5 +99,38 @@ export const deletePhaseDay = async (req, res, next) => {
     })
   } catch (err) {
     next(err)
+  }
+}
+
+export const getPhasesByCampaignId = async (req, res, next) => {
+  try {
+    const { campaignId } = req.params
+    const phases = await phaseService.getPhasesByCampaignId(campaignId)
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách giai đoạn và ngày hoạt động thành công',
+      data: phases
+    })
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.message || 'Lỗi khi lấy danh sách giai đoạn'
+    })
+  }
+}
+
+export const startPhase = async (req, res, next) => {
+  try {
+    const { phaseId } = req.params;
+
+    const updatedPhase = await phaseService.startPhaseService(phaseId);
+
+    res.status(200).json({
+      message: 'Phase started successfully',
+      phase: updatedPhase,
+    });
+  } catch (error) {
+    next(error); 
   }
 }

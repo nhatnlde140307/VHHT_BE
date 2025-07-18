@@ -6,16 +6,19 @@ import {
 import { getListCampaigns,getCampaignVolunteers,
         startCampaignHandler,createCampaign,
         deleteCampaign,getCampaignById,
-        acceptRequestHandler, updateCampaign,
+        acceptRequestHandler, updateCampaign,getVolunteerCampaign,
         registerCampaign,endCampaign,
-        approveCampaign,rejectCampaign
+        approveCampaign,rejectCampaign,rejectRequestHandler
       } from '../controllers/campaigns.controller.js'
 import uploadCloud from '../utils/cloudinary.config.js'
-import { createDepartment,
+import { getDepartmentsByCampaignId, createDepartment,
   updateDepartment,addMemberToDepartment,removeMemberFromDepartment,
-  deleteDepartment } from '../controllers/department.controller.js'
+  deleteDepartment, getDepartmentByVolunteer } from '../controllers/department.controller.js'
 
 const campaignRoutes = express.Router()
+
+//get my campaign
+campaignRoutes.get('/me', accessTokenValidator, wrapRequestHandler(getVolunteerCampaign))
 
 //create campaign (staff, manager)
 campaignRoutes.post('/',uploadCloud.fields([
@@ -24,6 +27,7 @@ campaignRoutes.post('/',uploadCloud.fields([
 
 // get by id 
 campaignRoutes.get('/:campaignId', wrapRequestHandler(getCampaignById))
+
 
 //getlist
 campaignRoutes.get('/',wrapRequestHandler(getListCampaigns))
@@ -36,12 +40,21 @@ campaignRoutes.put('/:campaignId', organizationAndManagerValidator,uploadCloud.f
   { name: 'campaignImg', maxCount: 1 },
   { name: 'gallery', maxCount: 10 }]), wrapRequestHandler(updateCampaign));
 
-
 //approve chiến dịch
 campaignRoutes.put('/:campaignId/approve', managerValidator, wrapRequestHandler(approveCampaign));
 
 //reject chiến dịch
 campaignRoutes.put('/:campaignId/reject', managerValidator, wrapRequestHandler(rejectCampaign));
+
+// lay department theo campaign
+campaignRoutes.get('/:campaignId/departments', wrapRequestHandler(getDepartmentsByCampaignId));
+
+// lay department theo volunteer
+campaignRoutes.get(
+  '/departments/volunteer/:volunteerId',
+  organizationAndManagerValidator,
+  wrapRequestHandler(getDepartmentByVolunteer)
+);
 
 //tao phong ban
 campaignRoutes.post(
@@ -66,7 +79,7 @@ campaignRoutes.delete(
 
 // Thêm member vào phòng ban
 campaignRoutes.patch(
-  '/departments/:departmentId/members',
+  '/departments/:departmentId/members/:userId',
   organizationAndManagerValidator,
   wrapRequestHandler(addMemberToDepartment)
 )
@@ -78,25 +91,31 @@ campaignRoutes.delete(
   wrapRequestHandler(removeMemberFromDepartment)
 )
 
-
-
+//volunteer register campaign
 campaignRoutes.post(
   '/:campaignId/register',
   accessTokenValidator,
   wrapRequestHandler(registerCampaign)
 );
 
+//get volunteer theo campaign
 campaignRoutes.get(
   '/:id/volunteers',
   accessTokenValidator,
-  adminValidator,
+  organizationAndManagerValidator,
   wrapRequestHandler(getCampaignVolunteers)
 );
 
-campaignRoutes.post('/:campaignId/accept/:userId', accessTokenValidator, adminValidator, wrapRequestHandler(acceptRequestHandler))
+//accept vonlunteer
+campaignRoutes.post('/:campaignId/accept/:userId', accessTokenValidator, organizationAndManagerValidator, wrapRequestHandler(acceptRequestHandler))
 
-campaignRoutes.put('/:campaignId/start', adminValidator, wrapRequestHandler(startCampaignHandler));
+//reject vonlunteer
+campaignRoutes.post('/:campaignId/reject/:userId', accessTokenValidator, organizationAndManagerValidator, wrapRequestHandler(rejectRequestHandler))
 
-campaignRoutes.put('/:campaignId/end', adminValidator, wrapRequestHandler(endCampaign));
+//start campaign, post fb 
+campaignRoutes.put('/:campaignId/start', organizationAndManagerValidator, wrapRequestHandler(startCampaignHandler));
+
+//end campaign, render certification
+campaignRoutes.put('/:campaignId/end', organizationAndManagerValidator, wrapRequestHandler(endCampaign));
 
 export default campaignRoutes

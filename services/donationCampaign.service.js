@@ -4,16 +4,16 @@ import { MailGenerator, transporter } from '../utils/nodemailerConfig.js'
 import DonorProfile from '../models/donorProfile.model.js';
 import User from '../models/users.model.js';
 import DonationTransaction from '../models/donationTransaction.model.js';
-
+import mongoose from 'mongoose';
 config();
 
 class DonationServices {
-    async create(images, data, userId) {
+
+    async create(images, thumbnail, data, userId) {
         const {
             title,
             description,
             goalAmount,
-            thumbnail,
             tags = [],
             createdBy
         } = data;
@@ -26,7 +26,7 @@ class DonationServices {
             title,
             description,
             goalAmount: Number(goalAmount),
-            thumbnail,
+            thumbnail: thumbnail,
             images: images,
             tags,
             createdBy: userId,
@@ -34,6 +34,51 @@ class DonationServices {
         });
 
         return await newCampaign.save();
+    }
+
+    async updateDonationCampaign(images, payload, thumbnail, donationCampaignId) {
+        try {
+            console.log('🖼️ Thumbnail path:', thumbnail);
+
+            if (!mongoose.Types.ObjectId.isValid(donationCampaignId)) {
+                throw new Error('ID chiến dịch không hợp lệ')
+            }
+
+            const campaign = await DonationCampaign.findById(donationCampaignId)
+            if (!campaign) {
+                throw new Error('Không tìm thấy chiến dịch')
+            }
+
+            const fields = [
+                'title',
+                'description',
+                'goalAmount',
+                'thumbnail',
+                'images',
+                'tags',
+                'status'
+            ]
+
+            fields.forEach(field => {
+                if (payload[field] !== undefined) {
+                    campaign[field] = payload[field]
+                }
+            })
+
+            if (thumbnail) {
+                campaign.thumbnail = thumbnail;
+            }
+
+            if (Array.isArray(images) && images.length > 0) {
+                campaign.images = [...(campaign.images || []), ...images]
+            }
+
+            const updated = await campaign.save()
+            return updated
+        } catch (err) {
+            console.error('❌ [updateCampaign] Lỗi:', err)
+            throw new Error(`Cập nhật chiến dịch thất bại: ${err.message}`)
+        }
     }
 
     async approve(id) {
@@ -151,14 +196,14 @@ class DonationServices {
 
     async getbyId(id) {
         const campaign = await DonationCampaign.findById(id)
-            .populate('createdBy', 'fullName avatar') 
-            .populate('tags'); 
+            .populate('createdBy', 'fullName avatar')
+            .populate('tags');
 
         if (!campaign) return null;
 
         const transactions = await DonationTransaction.find({
             donationCampaignId: id,
-            paymentStatus: 'success' 
+            paymentStatus: 'success'
         }).sort({ createdAt: -1 });
 
         return {

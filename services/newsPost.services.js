@@ -40,10 +40,10 @@ class NewsPostService {
         const hasUpvoted = post.upvotes.includes(userId);
 
         if (hasUpvoted) {
-            post.upvotes.pull(userId);
+            post.upvotes = post.upvotes.filter(u => u !== userId);
         } else {
             post.upvotes.push(userId);
-            post.downvotes.pull(userId);
+            post.downvotes = post.downvotes.filter(u => u !== userId);
         }
 
         await post.save();
@@ -57,28 +57,29 @@ class NewsPostService {
     }
 
     async downvote(postId, userId) {
-        return NewsPost.findById(postId).then(news => {
-            if (!news) throw new Error('News not found');
+        const news = await NewsPost.findById(postId);
+        if (!news) throw new Error('News not found');
 
-            news.upvotes = news.upvotes || [];
-            news.downvotes = news.downvotes || [];
+        news.upvotes = news.upvotes || [];
+        news.downvotes = news.downvotes || [];
 
-            const hasDownvoted = news.downvotes.includes(userId);
+        const hasDownvoted = news.downvotes.includes(userId);
 
-            if (hasDownvoted) {
-                news.downvotes.pull(userId); 
-            } else {
-                news.downvotes.push(userId);
-                news.upvotes.pull(userId); 
-            }
+        if (hasDownvoted) {
+            news.downvotes = news.downvotes.filter(u => u !== userId);
+        } else {
+            news.downvotes.push(userId);
+            news.upvotes = news.upvotes.filter(u => u !== userId);
+        }
 
-            return news.save().then(() => ({
-                message: hasDownvoted ? 'Downvote removed' : 'News downvoted',
-                upvotes: news.upvotes.length,
-                downvotes: news.downvotes.length,
-                votes: news.upvotes.length - news.downvotes.length
-            }));
-        });
+        await news.save();
+
+        return {
+            message: hasDownvoted ? 'Downvote removed' : 'News downvoted',
+            upvotes: news.upvotes.length,
+            downvotes: news.downvotes.length,
+            votes: news.upvotes.length - news.downvotes.length
+        };
     }
 
 
