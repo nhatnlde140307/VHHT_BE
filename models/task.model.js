@@ -14,11 +14,6 @@ const assignedUserSchema = new mongoose.Schema({
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User' 
-    },
-    submissionType: {
-      type: String,
-      enum: ['self', 'proxy'],
-      default: 'self'
     }
   },
   // Task Review
@@ -35,7 +30,7 @@ const assignedUserSchema = new mongoose.Schema({
     staffComment: String,
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Staff'
+      ref: 'User'
     },
     reviewedAt: Date
   }

@@ -2,6 +2,8 @@ import mongoose from 'mongoose'
 import Phase from '../models/phase.model.js'
 import Campaign from '../models/campaign.model.js'
 import PhaseDay from '../models/phaseDay.model.js'
+import { sendNotificationToUser } from '../socket/socket.js'
+import Notification from '../models/notification.model.js'
 
 async function createPhase({ campaignId, name, description, startDate, endDate }) {
     if (!mongoose.Types.ObjectId.isValid(campaignId)) {
@@ -189,6 +191,62 @@ export async function getPhasesByCampaignId(campaignId) {
     return phases
 }
 
+export async function startPhaseService(phaseId) {
+    const phase = await Phase.findById(phaseId).populate('campaignId');
+    if (!phase) {
+        throw new Error('phaseId không hợp lệ')
+    }
+
+    const campaign = phase.campaignId;
+
+    if (phase.status !== 'upcoming') {
+        throw new Error('Phase is not in upcoming status')
+    }
+
+    const currentDate = new Date();
+    // if (phase.startDate > currentDate) {
+    //     throw new ApiError(400, 'Phase start date has not arrived yet');
+    // }
+
+    phase.status = 'in-progress';
+    await phase.save();
+
+    // Optional: Cập nhật first phaseDay
+    if (phase.phaseDays.length > 0) {
+        const firstPhaseDay = await PhaseDay.findById(phase.phaseDays[0]);
+        if (firstPhaseDay && firstPhaseDay.status === 'upcoming' && firstPhaseDay.date <= currentDate) {
+            firstPhaseDay.status = 'in-progress';
+            await firstPhaseDay.save();
+        }
+    }
+
+    // Tạo và gửi notification cho volunteers
+    const volunteers = campaign.volunteers.filter(v => v.status === 'approved');
+    for (const volunteer of volunteers) {
+        const recipientId = volunteer.user;
+
+        const newNotification = new Notification({
+            title: `Phase "${phase.name}" của chiến dịch "${campaign.name} đã bắt đầu"`,
+            content: `Phase đã bắt đầu, hãy check task của bạn.`,
+            link: `/campaigns/${campaign._id}/phases/${phase._id}`,
+            type: 'system',
+            recipient: recipientId,
+            isRead: false,
+        });
+
+        await newNotification.save();
+
+        // Gửi qua socket
+        try {
+            sendNotificationToUser(recipientId, newNotification);
+        } catch (socketError) {
+            console.error(`Failed to send socket noti to user ${recipientId}:`, socketError);
+        }
+    }
+
+    return phase;
+}
+
 export const phaseService = {
     createPhase,
     updatePhase,
@@ -196,5 +254,6 @@ export const phaseService = {
     createPhaseDay,
     updatePhaseDay,
     deletePhaseDay,
-    getPhasesByCampaignId
+    getPhasesByCampaignId,
+    startPhaseService
 }

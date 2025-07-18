@@ -37,44 +37,64 @@ export const deleteTask = async (req, res, next) => {
 };
 
 export const getTasksByUserAndCampaign = async (req, res, next) => {
-  try {
-    const userId = req.decoded_authorization.user_id;
-    const { campaignId } = req.params;
+    try {
+        const userId = req.decoded_authorization.user_id;
+        const { campaignId } = req.params;
 
-    if (!campaignId) {
-      return res.status(400).json({ message: "campaignId is required" });
+        if (!campaignId) {
+            return res.status(400).json({ message: "campaignId is required" });
+        }
+
+        const rawTasks = await taskService.getUserTasksByCampaign(userId, campaignId);
+
+        const formattedTasks = rawTasks.map((task) => {
+            const submission = task.userSubmission?.submission || {};
+            const review = task.userSubmission?.review || {};
+
+            return {
+                taskId: task._id,
+                title: task.title,
+                description: task.description,
+                phaseDay: {
+                    date: task.phaseDayDate,
+                    phaseName: task.phaseName,
+                },
+                submission: {
+                    submittedAt: submission.submittedAt || null,
+                    submittedBy: submission.submittedBy || null,
+                    status: review?.status || "pending",
+                    evaluation: review?.evaluation || null,
+                    reviewedAt: review?.reviewedAt || null,
+                    staffComment: review?.staffComment || null,
+                },
+            };
+        });
+
+        res.json(formattedTasks);
+    } catch (err) {
+        console.error("🔥 Controller error:", err);
+        res.status(500).json({ message: err.message || "Server error" });
     }
-
-    const rawTasks = await taskService.getUserTasksByCampaign(userId, campaignId);
-
-    const formattedTasks = rawTasks.map((task) => {
-      const submission = task.userSubmission?.submission || {};
-      const review = task.userSubmission?.review || {};
-
-      return {
-        taskId: task._id,
-        title: task.title,
-        description: task.description,
-        phaseDay: {
-          date: task.phaseDayDate,
-          phaseName: task.phaseName,
-        },
-        submission: {
-          submittedAt: submission.submittedAt || null,
-          submittedBy: submission.submittedBy || null,
-          status: review?.status || "pending",
-          evaluation: review?.evaluation || null,
-          reviewedAt: review?.reviewedAt || null,
-          staffComment: review?.staffComment || null,
-        },
-      };
-    });
-
-    res.json(formattedTasks);
-  } catch (err) {
-    console.error("🔥 Controller error:", err);
-    res.status(500).json({ message: err.message || "Server error" });
-  }
 }
 
+export const submitTask = async (req, res, next) => {
+    try {
+        const { taskId } = req.params;
+        const { content } = req.body;
+        const images = req.files?.map(file => file.path) || [];
+        const userId = req.decoded_authorization.user_id; 
 
+        const updatedTask = await taskService.submitTaskService(taskId, userId, content, images);
+
+        res.status(200).json({
+            message: 'Submission nộp thành công',
+            task: updatedTask
+        });
+    } catch (error) {
+        console.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Lỗi server khi nộp submission' });
+    }
+};

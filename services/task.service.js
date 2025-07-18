@@ -62,7 +62,6 @@ export const deleteTask = async (taskId) => {
     return { message: 'Xoá task thành công' };
 };
 
-
 export const getUserTasksByCampaign = async (userId, campaignId) => {
     if (
         !mongoose.Types.ObjectId.isValid(userId) ||
@@ -131,4 +130,32 @@ export const getUserTasksByCampaign = async (userId, campaignId) => {
     ]);
 
     return tasks;
+};
+
+export const submitTaskService = async (taskId, userId, content, images) => {
+    const task = await Task.findById(taskId);
+    if (!task) {
+        throw { status: 404, message: 'Task không tồn tại' };
+    }
+
+    const assignedUser = task.assignedUsers.find(au => au.userId.toString() === userId.toString());
+    if (!assignedUser) {
+        throw { status: 403, message: 'Bạn không được assigned cho task này' };
+    }
+
+    if (assignedUser.submission && assignedUser.submission.submittedAt) {
+        throw { status: 400, message: 'Bạn đã nộp submission cho task này' };
+    }
+
+    assignedUser.submission = {
+        content,
+        images: images || [],
+        submittedAt: new Date(),
+        submittedBy: userId,
+        submissionType: 'self'
+    };
+
+    await task.save();
+
+    return task;
 };

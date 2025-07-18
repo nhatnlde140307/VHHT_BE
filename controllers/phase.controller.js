@@ -119,3 +119,18 @@ export const getPhasesByCampaignId = async (req, res, next) => {
     })
   }
 }
+
+export const startPhase = async (req, res, next) => {
+  try {
+    const { phaseId } = req.params;
+
+    const updatedPhase = await phaseService.startPhaseService(phaseId);
+
+    res.status(200).json({
+      message: 'Phase started successfully',
+      phase: updatedPhase,
+    });
+  } catch (error) {
+    next(error); 
+  }
+}
