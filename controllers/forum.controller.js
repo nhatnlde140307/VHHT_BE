@@ -51,7 +51,9 @@ export const updateForumPost = async (req, res) => {
     if (!updated)
       return res.status(404).json({ error: "No forum post not found" });
 
-    res.json(updated);
+    res.json({
+      data: updated,
+    });
   } catch (err) {
     console.error("UPDATE POSTS ERROR:", err);
     res.status(500).json({ error: err.message });
@@ -73,7 +75,7 @@ export const deleteForumPost = async (req, res) => {
       return res.status(404).json({ error: "Forum post not found" });
     }
 
-    res.json({ message: "Deleted successfully" });
+    res.json({ data: "Deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
