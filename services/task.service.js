@@ -114,40 +114,47 @@ export const getTasksByUserAndCampaign = async (userId, campaignId) => {
         })
         .select('title description status checkinTime checkoutTime');
 
+
     if (!tasks || tasks.length === 0) {
         const error = new Error('No tasks found for this user in the specified campaign');
         error.status = 404;
         throw error;
     }
 
-    const formattedTasks = tasks.map(task => ({
-        taskId: task._id,
-        title: task.title,
-        description: task.description,
-        status: task.status.status,
-        submittedAt: task.status.submittedAt,
-        feedback: task.status.feedback,
-        evaluation: task.status.evaluation,
-        checkinTime: task.assignedUsers.find(user => user.userId.toString() === userId)?.checkinTime,
-        checkoutTime: task.assignedUsers.find(user => user.userId.toString() === userId)?.checkoutTime,
-        phaseDay: {
-            date: task.phaseDayId?.date,
-            location: task.phaseDayId?.checkinLocation,
-            status: task.phaseDayId?.status,
-        },
-        phase: {
-            name: task.phaseDayId?.phaseId?.name,
-            startDate: task.phaseDayId?.phaseId?.startDate,
-            endDate: task.phaseDayId?.phaseId?.endDate,
-            status: task.phaseDayId?.phaseId?.status,
-        },
-        campaign: {
-            name: task.phaseDayId?.phaseId?.campaignId?.name,
-            startDate: task.phaseDayId?.phaseId?.campaignId?.startDate,
-            endDate: task.phaseDayId?.phaseId?.campaignId?.endDate,
-            status: task.phaseDayId?.phaseId?.campaignId?.status,
-        },
-    }));
+    const formattedTasks = tasks.map(task => {
+        const user = Array.isArray(task.assignedUsers)
+            ? task.assignedUsers.find(user => user.userId && user.userId.toString() === userId)
+            : null;
+
+        return {
+            taskId: task._id,
+            title: task.title,
+            description: task.description,
+            status: task.status?.status || null,
+            submittedAt: task.status?.submittedAt || null,
+            feedback: task.status?.feedback || null,
+            evaluation: task.status?.evaluation || null,
+            checkinTime: user?.checkinTime || null,
+            checkoutTime: user?.checkoutTime || null,
+            phaseDay: {
+                date: task.phaseDayId?.date || null,
+                location: task.phaseDayId?.checkinLocation || null,
+                status: task.phaseDayId?.status || null,
+            },
+            phase: {
+                name: task.phaseDayId?.phaseId?.name || null,
+                startDate: task.phaseDayId?.phaseId?.startDate || null,
+                endDate: task.phaseDayId?.phaseId?.endDate || null,
+                status: task.phaseDayId?.phaseId?.status || null,
+            },
+            campaign: {
+                name: task.phaseDayId?.phaseId?.campaignId?.name || null,
+                startDate: task.phaseDayId?.phaseId?.campaignId?.startDate || null,
+                endDate: task.phaseDayId?.phaseId?.campaignId?.endDate || null,
+                status: task.phaseDayId?.phaseId?.campaignId?.status || null,
+            },
+        };
+    });
 
     return formattedTasks;
 };
