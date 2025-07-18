@@ -62,92 +62,73 @@ export const deleteTask = async (taskId) => {
     return { message: 'Xoá task thành công' };
 };
 
-export const getTasksByUserAndCampaign = async (userId, campaignId) => {
-    // Kiểm tra userId và campaignId hợp lệ
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-        const error = new Error('Invalid userId');
-        error.status = 400;
-        throw error;
-    }
-    if (!mongoose.Types.ObjectId.isValid(campaignId)) {
-        const error = new Error('Invalid campaignId');
-        error.status = 400;
-        throw error;
+
+export const getUserTasksByCampaign = async (userId, campaignId) => {
+    if (
+        !mongoose.Types.ObjectId.isValid(userId) ||
+        !mongoose.Types.ObjectId.isValid(campaignId)
+    ) {
+        throw new Error("Invalid userId or campaignId");
     }
 
-    // Tìm các phase thuộc campaignId
-    const phases = await Phase.find({ campaignId }).select('_id');
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const campaignObjectId = new mongoose.Types.ObjectId(campaignId);
 
-    if (!phases || phases.length === 0) {
-        const error = new Error('No phases found for this campaign');
-        error.status = 404;
-        throw error;
-    }
-
-    const phaseIds = phases.map(phase => phase._id);
-
-    const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).select('_id');
-
-    if (!phaseDays || phaseDays.length === 0) {
-        const error = new Error('No phase days found for this campaign');
-        error.status = 404;
-        throw error;
-    }
-
-    const phaseDayIds = phaseDays.map(phaseDay => phaseDay._id);
-
-    const tasks = await Task.find({
-        'assignedUsers.userId': userId,
-        phaseDayId: { $in: phaseDayIds },
-    })
-        .populate({
-            path: 'phaseDayId',
-            select: 'date checkinLocation status',
-            populate: {
-                path: 'phaseId',
-                select: 'name startDate endDate status campaignId',
-                populate: {
-                    path: 'campaignId',
-                    select: 'name startDate endDate status',
-                },
+    const tasks = await Task.aggregate([
+        {
+            $match: {
+                "assignedUsers.userId": userObjectId,
             },
-        })
-        .select('title description status checkinTime checkoutTime');
-
-    if (!tasks || tasks.length === 0) {
-        const error = new Error('No tasks found for this user in the specified campaign');
-        error.status = 404;
-        throw error;
-    }
-
-    const formattedTasks = tasks.map(task => ({
-        taskId: task._id,
-        title: task.title,
-        description: task.description,
-        status: task.status.status,
-        submittedAt: task.status.submittedAt,
-        feedback: task.status.feedback,
-        evaluation: task.status.evaluation,
-        checkinTime: task.assignedUsers.find(user => user.userId.toString() === userId)?.checkinTime,
-        checkoutTime: task.assignedUsers.find(user => user.userId.toString() === userId)?.checkoutTime,
-        phaseDay: {
-            date: task.phaseDayId?.date,
-            location: task.phaseDayId?.checkinLocation,
-            status: task.phaseDayId?.status,
         },
-        phase: {
-            name: task.phaseDayId?.phaseId?.name,
-            startDate: task.phaseDayId?.phaseId?.startDate,
-            endDate: task.phaseDayId?.phaseId?.endDate,
-            status: task.phaseDayId?.phaseId?.status,
+        {
+            $lookup: {
+                from: "phasedays",
+                localField: "phaseDayId",
+                foreignField: "_id",
+                as: "phaseDay",
+            },
         },
-        campaign: {
-            name: task.phaseDayId?.phaseId?.campaignId?.name,
-            startDate: task.phaseDayId?.phaseId?.campaignId?.startDate,
-            endDate: task.phaseDayId?.phaseId?.campaignId?.endDate,
-            status: task.phaseDayId?.phaseId?.campaignId?.status,
+        { $unwind: "$phaseDay" },
+        {
+            $lookup: {
+                from: "phases",
+                localField: "phaseDay.phaseId",
+                foreignField: "_id",
+                as: "phase",
+            },
         },
-    }));
+        { $unwind: "$phase" },
+        {
+            $match: {
+                "phase.campaignId": campaignObjectId,
+            },
+        },
+        {
+            $project: {
+                title: 1,
+                description: 1,
+                phaseDayDate: "$phaseDay.date",
+                phaseName: "$phase.name",
+                campaignId: "$phase.campaignId",
+                userSubmission: {
+                    $arrayElemAt: [
+                        {
+                            $filter: {
+                                input: "$assignedUsers",
+                                as: "a",
+                                cond: {
+                                    $eq: ["$$a.userId", userObjectId],
+                                }
+                            }
+                        },
+                        0
+                    ]
+                }
 
-    return formattedTasks;
+            },
+        },
+        { $sort: { phaseDayDate: 1 } },
+    ]);
+
+    return tasks;
 };

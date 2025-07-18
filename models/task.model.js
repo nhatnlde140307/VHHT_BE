@@ -1,36 +1,60 @@
 import mongoose from 'mongoose';
 
-const taskSchema = new mongoose.Schema({
-    phaseDayId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'PhaseDay',
-        required: true
+const assignedUserSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  // Task Submission
+  submission: {
+    content: String, 
+    images: [String], 
+    submittedAt: Date,
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User' 
     },
-    title: { type: String, required: true },
-    description: { type: String },
-
+    submissionType: {
+      type: String,
+      enum: ['self', 'proxy'],
+      default: 'self'
+    }
+  },
+  // Task Review
+  review: {
     status: {
-        status: {
-            type: String,
-            enum: ['not-started', 'in_progress', 'submitted', 'approved', 'rejected'],
-            default: 'not-started'
-        },
-        submittedAt: Date,
-        feedback: String,
-        evaluation: {
-            type: String,
-            enum: ['excellent', 'good', 'average', 'poor']
-        }
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
-    assignedUsers: [{
-        userId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        },
-        checkinTime: Date,
-        checkoutTime: Date,
+    evaluation: {
+      type: String,
+      enum: ['excellent', 'good', 'average', 'poor']
+    },
+    staffComment: String,
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Staff'
+    },
+    reviewedAt: Date
+  }
+});
 
-    }]
-}, { timestamps: true });
+const taskSchema = new mongoose.Schema({
+  phaseDayId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PhaseDay',
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  description: String,
+  assignedUsers: [assignedUserSchema]
+}, {
+  timestamps: true
+});
 
 export default mongoose.model('Task', taskSchema);

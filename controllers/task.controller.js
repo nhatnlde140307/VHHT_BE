@@ -39,17 +39,42 @@ export const deleteTask = async (req, res, next) => {
 export const getTasksByUserAndCampaign = async (req, res, next) => {
   try {
     const userId = req.decoded_authorization.user_id;
-    const { campaignId } = req.query;
+    const { campaignId } = req.params;
 
-    const tasks = await taskService.getTasksByUserAndCampaign(userId, campaignId);
+    if (!campaignId) {
+      return res.status(400).json({ message: "campaignId is required" });
+    }
 
-    res.status(200).json({
-      message: 'Tasks retrieved successfully',
-      data: tasks,
+    const rawTasks = await taskService.getUserTasksByCampaign(userId, campaignId);
+
+    const formattedTasks = rawTasks.map((task) => {
+      const submission = task.userSubmission?.submission || {};
+      const review = task.userSubmission?.review || {};
+
+      return {
+        taskId: task._id,
+        title: task.title,
+        description: task.description,
+        phaseDay: {
+          date: task.phaseDayDate,
+          phaseName: task.phaseName,
+        },
+        submission: {
+          submittedAt: submission.submittedAt || null,
+          submittedBy: submission.submittedBy || null,
+          status: review?.status || "pending",
+          evaluation: review?.evaluation || null,
+          reviewedAt: review?.reviewedAt || null,
+          staffComment: review?.staffComment || null,
+        },
+      };
     });
-  } catch (error) {
-    console.error(error);
-    res.status(error.status || 500).json({ message: error.message || 'Server error' });
+
+    res.json(formattedTasks);
+  } catch (err) {
+    console.error("🔥 Controller error:", err);
+    res.status(500).json({ message: err.message || "Server error" });
   }
 }
+
 
