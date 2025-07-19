@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema({
 
   type: {
     type: String,
-    enum: ['comment_reply', 'campaign_approved', 'donation', 'system', 'certificate'],
+    enum: ['comment_reply','task_assigned', 'campaign_approved', 'donation', 'system', 'certificate'],
     required: true,
   },
 
@@ -37,6 +37,8 @@ const notificationSchema = new mongoose.Schema({
     default: Date.now
   }
 })
+
+notificationSchema.index({ recipient: 1, createdAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema)
 export default Notification

@@ -2,6 +2,8 @@ import Task from '../models/task.model.js';
 import PhaseDay from '../models/phaseDay.model.js';
 import mongoose from 'mongoose';
 import Phase from '../models/phase.model.js'
+import User from '../models/users.model.js';
+import Campaign from '../models/campaign.model.js';
 
 export const getTasksByPhaseDayId = async (phaseDayId) => {
     if (!mongoose.Types.ObjectId.isValid(phaseDayId)) {
@@ -161,36 +163,158 @@ export const submitTaskService = async (taskId, userId, content, images) => {
 };
 
 export const reviewTaskService = async (taskId, userId, staffId, status, evaluation, staffComment) => {
-  const task = await Task.findById(taskId);
-  if (!task) {
-    throw { status: 404, message: 'Task không tồn tại' };
-  }
+    const task = await Task.findById(taskId);
+    if (!task) {
+        throw { status: 404, message: 'Task không tồn tại' };
+    }
 
-  const assignedUser = task.assignedUsers.find(au => au.userId.toString() === userId.toString());
-  if (!assignedUser) {
-    throw { status: 404, message: 'User không được assigned cho task này' };
-  }
+    const assignedUser = task.assignedUsers.find(au => au.userId.toString() === userId.toString());
+    if (!assignedUser) {
+        throw { status: 404, message: 'User không được assigned cho task này' };
+    }
 
-  if (!assignedUser.submission || !assignedUser.submission.submittedAt) {
-    throw { status: 400, message: 'Submission chưa được nộp, không thể review' };
-  }
+    if (!assignedUser.submission || !assignedUser.submission.submittedAt) {
+        throw { status: 400, message: 'Submission chưa được nộp, không thể review' };
+    }
 
-  if (assignedUser.review.status !== 'pending') {
-    throw { status: 400, message: 'Task này đã được review' };
-  }
+    if (assignedUser.review.status !== 'pending') {
+        throw { status: 400, message: 'Task này đã được review' };
+    }
 
-  // Update review
-  assignedUser.review = {
-    status: status || 'approved',  
-    evaluation: evaluation || 'average',  
-    staffComment: staffComment || '',
-    reviewedBy: staffId,
-    reviewedAt: new Date()
-  };
+    // Update review
+    assignedUser.review = {
+        status: status || 'approved',
+        evaluation: evaluation || 'average',
+        staffComment: staffComment || '',
+        reviewedBy: staffId,
+        reviewedAt: new Date()
+    };
 
-  await task.save();
+    await task.save();
 
-  return task;
+    return task;
 };
 
+export const assignTaskToUsers = async (taskId, userIds) => {
+    // Validation cơ bản
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+        throw new Error('User IDs must be a non-empty array');
+    }
 
+    // Kiểm tra task tồn tại
+    const task = await Task.findById(taskId).populate('phaseDayId'); // Populate phaseDayId để lấy date ngay
+    if (!task) {
+        throw new Error('Task not found');
+    }
+
+    const newPhaseDay = await PhaseDay.findById(task.phaseDayId).populate('phaseId'); // Lấy PhaseDay và populate phaseId
+    if (!newPhaseDay) {
+        throw new Error('PhaseDay not found for this task');
+    }
+
+    const newDate = newPhaseDay.date; // Date của task mới (normalize to start of day nếu cần, nhưng giả sử date là Date without time)
+    const newPhase = await Phase.findById(newPhaseDay.phaseId);
+    if (!newPhase) {
+        throw new Error('Phase not found for this PhaseDay');
+    }
+    const newCampaignId = newPhase.campaignId.toString(); // CampaignId của task mới
+
+    // Kiểm tra tất cả user tồn tại, lọc duplicate, check approved trong campaign, và check conflict
+    const validUsers = [];
+    const existingUserIds = task.assignedUsers.map((assigned) => assigned.userId.toString());
+
+    for (const userId of userIds) {
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new Error(`User not found: ${userId}`);
+        }
+        if (existingUserIds.includes(userId.toString())) {
+            continue; // Skip nếu đã assign vào task này
+        }
+
+        // Check user approved trong campaign
+        const campaign = await Campaign.findById(newCampaignId);
+        if (!campaign) {
+            throw new Error('Campaign not found for this task');
+        }
+        const volunteer = campaign.volunteers.find((v) => v.user.toString() === userId);
+        if (!volunteer || volunteer.status !== 'approved') {
+            throw new Error(`User ${userId} is not approved in this campaign`);
+        }
+
+        // Check conflict: Tìm tasks khác mà user đã assign, có cùng ngày nhưng khác campaign
+        const conflictingTasks = await Task.aggregate([
+            {
+                $match: {
+                    'assignedUsers.userId': new mongoose.Types.ObjectId(userId),
+                },
+            },
+            {
+                $lookup: {
+                    from: 'phasedays',
+                    localField: 'phaseDayId',
+                    foreignField: '_id',
+                    as: 'phaseDay',
+                },
+            },
+            {
+                $unwind: '$phaseDay',
+            },
+            {
+                $lookup: {
+                    from: 'phases',
+                    localField: 'phaseDay.phaseId',
+                    foreignField: '_id',
+                    as: 'phase',
+                },
+            },
+            {
+                $unwind: '$phase',
+            },
+            {
+                $match: {
+                    'phaseDay.date': newDate, // Cùng ngày (giả sử date là Date, có thể cần $eq và normalize nếu có time)
+                    'phase.campaignId': { $ne: new mongoose.Types.ObjectId(newCampaignId) }, // Khác campaign
+                },
+            },
+        ]);
+
+        if (conflictingTasks.length > 0) {
+            throw new Error(`User ${userId} has conflicting tasks on the same day in another campaign`);
+        }
+
+        validUsers.push(userId);
+    }
+
+    if (validUsers.length === 0) {
+        throw new Error('All users are already assigned, not approved, or have conflicts');
+    }
+
+    // Thêm assignedUsers mới vào mảng
+    const newAssigned = validUsers.map((userId) => ({
+        userId,
+        // Các trường khác mặc định theo schema
+    }));
+    task.assignedUsers.push(...newAssigned);
+
+    // Lưu thay đổi
+    await task.save();
+
+    // Tạo và lưu notification vào DB cho từng user, rồi gửi socket
+    for (const userId of validUsers) {
+        const newNotification = new Notification({
+            title: 'Nhiệm vụ mới được giao', // Title ngắn gọn, có thể customize dựa trên type
+            content: `Bạn đã được giao nhiệm vụ mới: ${task.title}`, // Content là message chi tiết
+            link: `/tasks/${task._id}`, // Link ví dụ đến task detail page (có thể adjust dựa trên frontend route)
+            type: 'task_assigned',
+            recipient: userId, // Sử dụng recipient thay vì userId
+            // isRead default false, createdAt default Date.now
+        });
+        await newNotification.save();
+
+        // Gửi socket với full notification object (bao gồm _id từ DB)
+        sendNotificationToUser(userId, newNotification);
+    }
+
+    return task; // Trả về task đã cập nhật
+};

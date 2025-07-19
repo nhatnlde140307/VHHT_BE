@@ -137,3 +137,20 @@ export const reviewTask = async (req, res, next) => {
         res.status(500).json({ message: 'Lỗi server khi review task' });
     }
 };
+
+export const assignTaskToUser = async (req, res) => {
+  try {
+    const { taskId } = req.params; 
+    const { userIds } = req.body; 
+
+    const updatedTask = await taskService.assignTaskToUsers(taskId, Array.isArray(userIds) ? userIds : [userIds]); 
+
+    return res.status(200).json({
+      message: 'Task assigned to users successfully',
+      task: updatedTask,
+    });
+  } catch (error) {
+    console.error('Error assigning task:', error);
+    return res.status(error.message.includes('not found') ? 404 : 400).json({ message: error.message });
+  }
+};
