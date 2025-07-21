@@ -2,9 +2,12 @@ import express from 'express'
 import { createPhase, updatePhase, deletePhase, createPhaseDay, updatePhaseDay, deletePhaseDay, getPhasesByCampaignId, startPhase } from '../controllers/phase.controller.js'
 import { organizationAndManagerValidator, accessTokenValidator } from '../middlewares/users.middlewares.js'
 import { wrapRequestHandler } from '../utils/handlers.js'
-import { createTask, updateTask, deleteTask, getTasksByPhaseDayId,getTasksByUserAndCampaign,submitTask,reviewTask, assignTaskToUser } from '../controllers/task.controller.js';
+import { createTask, updateTask, deleteTask, getTasksByPhaseDayId,getTasksByUserAndCampaign,submitTask,reviewTask, assignTaskToUser, getTasksByCampaign } from '../controllers/task.controller.js';
 import uploadCloud from '../utils/cloudinary.config.js';
 const phaseRouter = express.Router()
+
+//gettask, checkinstatus by Id campaign
+phaseRouter.get('/:campaignId/tasks', accessTokenValidator, getTasksByCampaign);
 
 // Lấy tất cả phase và phaseDay theo campaignId
 phaseRouter.get(
@@ -60,6 +63,7 @@ phaseRouter.post('/tasks/:taskId/submit', accessTokenValidator, uploadCloud.arra
 
 //staff review tasksubmitsion
 phaseRouter.post('/tasks/:taskId/review/:userId', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(reviewTask))
+
 
 
 export default phaseRouter

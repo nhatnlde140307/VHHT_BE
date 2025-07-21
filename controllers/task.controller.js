@@ -154,3 +154,24 @@ export const assignTaskToUser = async (req, res) => {
     return res.status(error.message.includes('not found') ? 404 : 400).json({ message: error.message });
   }
 };
+
+export const getTasksByCampaign = async (req, res, next) => {
+  try {
+    const { campaignId } = req.params;
+    const userId = req.decoded_authorization.user_id;
+
+    if (!userId) {
+      throw new Error('Unauthorized: Không tìm thấy user ID từ authorization');
+    }
+
+    const { campaign, phases } = await taskService.getTasksByCampaignService(campaignId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách task thành công',
+      data: { campaign, phases }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

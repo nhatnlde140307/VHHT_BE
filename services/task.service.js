@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import Phase from '../models/phase.model.js'
 import User from '../models/users.model.js';
 import Campaign from '../models/campaign.model.js';
+import Checkin from '../models/checkin.model.js'
 
 export const getTasksByPhaseDayId = async (phaseDayId) => {
     if (!mongoose.Types.ObjectId.isValid(phaseDayId)) {
@@ -318,3 +319,90 @@ export const assignTaskToUsers = async (taskId, userIds) => {
 
     return task; // Trả về task đã cập nhật
 };
+
+export const getTasksByCampaignService = async (campaignId, userId) => {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const campaign = await Campaign.findById(campaignId)
+        .populate('categories', 'name color')
+        .lean();
+    if (!campaign) throw new Error('Campaign không tồn tại');
+
+    const isJoined = campaign.volunteers?.some(
+        (v) => v.user.toString() === userId && v.status === 'approved'
+    );
+    if (!isJoined) throw new Error('Bạn chưa tham gia hoặc chưa được approve');
+    const phases = await Phase.find({ _id: { $in: campaign.phases } }).lean();
+
+    const phaseIds = phases.map((p) => p._id);
+    const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).lean();
+
+    const allTaskIds = phaseDays.flatMap((pd) => pd.tasks || []);
+    const tasks = await Task.find({
+        _id: { $in: allTaskIds },
+        assignedVolunteers: userObjectId,
+    }).lean();
+
+    const taskMap = tasks.reduce((acc, task) => {
+        acc[task._id.toString()] = task;
+        return acc;
+    }, {});
+    const enrichedPhaseDays = phaseDays.map((pd) => ({
+        ...pd,
+        tasks: (pd.tasks || []).map((taskId) => taskMap[taskId.toString()]).filter(Boolean),
+    }));
+    // Checkin
+    const checkins = await Checkin.find({
+        userId: userObjectId,
+        phasedayId: { $in: enrichedPhaseDays.map((pd) => pd._id) },
+    }).select('phasedayId checkinTime method');
+
+    const checkinMap = checkins.reduce((acc, c) => {
+        acc[c.phasedayId.toString()] = {
+            hasCheckedIn: true,
+            checkinTime: c.checkinTime,
+            method: c.method,
+        };
+        return acc;
+    }, {});
+
+    const phaseDayByPhase = enrichedPhaseDays.reduce((acc, pd) => {
+        const key = pd.phaseId.toString();
+        if (!acc[key]) acc[key] = [];
+        acc[key].push({
+            ...pd,
+            checkinStatus: checkinMap[pd._id.toString()] || {
+                hasCheckedIn: false,
+                checkinTime: null,
+                method: null,
+            },
+        });
+        return acc;
+    }, {});
+
+    const finalPhases = phases.map((p) => ({
+        ...p,
+        phaseDays: phaseDayByPhase[p._id.toString()] || [],
+    }));
+
+    return {
+        campaign: {
+            _id: campaign._id,
+            name: campaign.name,
+            description: campaign.description,
+            startDate: campaign.startDate,
+            endDate: campaign.endDate,
+            status: campaign.status,
+            image: campaign.image,
+            location: campaign.location,
+            categories: campaign.categories,
+        },
+        phases: finalPhases,
+    };
+};
+
+
+
+
+
+
