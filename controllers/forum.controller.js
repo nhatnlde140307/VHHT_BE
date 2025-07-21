@@ -15,7 +15,8 @@ export const createNewForumPost = async (req, res) => {
       images,
     };
     const post = await forumServices.createNewForumPost(data, userId);
-    res.status(201).json(post);
+    const resData = await forumServices.getForumPostDetail(userId, post._id);
+    res.status(201).json({ data: resData });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
