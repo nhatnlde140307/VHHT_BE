@@ -13,6 +13,23 @@ uploadRouter.post('/upload-pdf', uploadCloud.single('template'), (req, res) => {
   })
 })
 
+uploadRouter.post('/upload-img-single', uploadCloud.single('images'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Không có file nào được upload' });
+  }
+
+  res.status(200).json({
+    message: 'Upload thành công',
+    file: {
+      url: req.file.path,
+      filename: req.file.originalname,
+    },
+  });
+  console.log("upload anh thanh cong cho chat")
+});
+
+
+
 uploadRouter.post('/upload-img-multi', uploadCloud.array('images', 5), (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ message: 'Không có file nào được upload' });

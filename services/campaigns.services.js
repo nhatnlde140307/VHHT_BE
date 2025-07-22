@@ -14,6 +14,8 @@ import { generateCertificateAndUpload } from './certificate.service.js';
 import Certificate from '../models/certificate.model.js'
 import { v2 as cloudinary } from 'cloudinary'
 import Category from '../models/category.model.js';
+import { sendNotificationToUser } from '../socket/socket.js';
+import Notification from '../models/notification.model.js';
 
 class CampaignServices {
     async getListCampaigns(query) {
@@ -552,11 +554,13 @@ class CampaignServices {
         volunteer.status = 'approved';
         await campaign.save();
 
-        const volunteerId = await User.findById(userId)
-        volunteerId.joinedCampaigns.push(campaignId)
-        await volunteerId.save()
-
         const user = await User.findById(userId);
+        if (!user) throw new Error('Không tìm thấy người dùng');
+
+        user.joinedCampaigns.push(campaignId);
+        await user.save();
+
+        // Gửi email (giữ nguyên code gốc, nhưng move user fetch lên trên để reuse)
         if (user) {
             const emailContent = {
                 body: {
@@ -576,12 +580,26 @@ class CampaignServices {
             });
         }
 
+        // Tạo và lưu notification vào DB, rồi gửi socket
+        const newNotification = new Notification({
+            title: 'Đăng ký chiến dịch được duyệt', // Title ngắn gọn
+            content: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name}" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
+            link: `/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
+            type: 'campaign_approved',
+            recipient: userId,
+            // isRead default false, createdAt default Date.now
+        });
+        await newNotification.save();
+
+        // Gửi socket với full notification object
+        sendNotificationToUser(userId, newNotification);
+
         return {
             campaign: campaign.name,
             user: user?.fullName || 'N/A',
             status: 'approved'
         };
-    }
+    };
 
     async rejectVolunteerInCampaign({ campaignId, userId }) {
         const campaign = await Campaign.findById(campaignId);
