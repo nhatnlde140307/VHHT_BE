@@ -26,6 +26,8 @@ import notiRouter from './routes/notification.routes.js'
 import paymentsRoutes from './routes/payment.routes.js'
 import phaseRouter from './routes/phase.routes.js'
 import categoryRoutes from './routes/category.routes.js'
+import stormRouter from './routes/storm.routes.js'
+import rlPointrouter from './routes/reliefPoint.routes.js'
 config()
 
 const app = express()
@@ -65,6 +67,9 @@ app.use('/comment', commentRouter)
 app.use('/notification', notiRouter)
 app.use('/phase', phaseRouter)
 app.use('/category', categoryRoutes)
+app.use('/storm', stormRouter)
+app.use('/relief-point', rlPointrouter)
+
 
 app.use(defaultErrorHandler)
 

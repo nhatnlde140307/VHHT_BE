@@ -1,16 +1,24 @@
 import express from 'express';
-import {
-  getAllReliefPoints,
-  createReliefPoint,
-  getNearestReliefPoint,
-  updateReliefPointStatus,
-} from '../controllers/reliefPoint.controller.js';
+import * as ReliefPointController from '../controllers/reliefPoint.controller.js';
 
-const router = express.Router();
+const rlPointrouter = express.Router();
 
-router.get('/', getAllReliefPoints);
-router.post('/report', createReliefPoint);
-router.get('/nearest', getNearestReliefPoint);
-router.patch('/:id/status', updateReliefPointStatus);
+// Tạo mới
+rlPointrouter.post('/', ReliefPointController.createReliefPoint);
 
-export default router;
+// Lấy danh sách
+rlPointrouter.get('/', ReliefPointController.getReliefPoints);
+
+// Lấy chi tiết
+rlPointrouter.get('/:id', ReliefPointController.getReliefPointById);
+
+// Xác minh điểm
+rlPointrouter.patch('/:id/verify', ReliefPointController.verifyReliefPoint);
+
+// Cập nhật trạng thái
+rlPointrouter.patch('/:id/status', ReliefPointController.updateReliefPointStatus);
+
+// Đăng ký hỗ trợ
+rlPointrouter.patch('/:id/respond', ReliefPointController.respondToReliefPoint);
+
+export default rlPointrouter;

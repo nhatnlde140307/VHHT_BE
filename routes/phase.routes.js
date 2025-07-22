@@ -43,9 +43,6 @@ phaseRouter.delete('/days/:phaseDayId', organizationAndManagerValidator, wrapReq
 // Lấy tất cả task theo phaseDayId
 phaseRouter.get('/:phaseDayId/tasks', wrapRequestHandler(getTasksByPhaseDayId))
 
-// Lấy tất cả task theo của user theo campaignId
-phaseRouter.get('/:campaignId/task/me', accessTokenValidator, wrapRequestHandler(getTasksByUserAndCampaign))
-
 // Tạo task
 phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask))
 
