@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema({
 
   type: {
     type: String,
-    enum: ['comment_reply','task_assigned', 'campaign_approved', 'donation', 'system', 'certificate'],
+    enum: ['comment_reply','task_assigned','task-issue','campaign_withdrawal', 'campaign_approved', 'donation', 'system', 'certificate'],
     required: true,
   },
 
