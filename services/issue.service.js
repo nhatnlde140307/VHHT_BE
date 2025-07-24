@@ -3,7 +3,7 @@ import Campaign from '../models/campaign.model.js';
 import Task from '../models/task.model.js';
 import User from '../models/users.model.js';
 import Notification from '../models/notification.model.js';
-import { sendNotificationToUser } from '../socket.js';
+import { sendNotificationToUser } from '../socket/socket.js';
 
 class IssueService {
   async createIssue(issueData) {
@@ -52,18 +52,8 @@ class IssueService {
       await notification.save();
       sendNotificationToUser(managerId, notification);
     } else if (type === 'task_issue') {
-      // Notify assignedTo or task reviewer
       const task = await Task.findById(relatedEntity.entityId);
-      const assignedTo = issueData.assignedTo || task.assignedUsers[0].review.reviewedBy; // Default to reviewer
-      const notification = new Notification({
-        title: 'Báo cáo sự cố task',
-        content: `User ${issueData.reportedBy} báo cáo sự cố cho task ${task.title}`,
-        type: 'task_issue',
-        recipient: assignedTo,
-        link: `/issues/${newIssue._id}`
-      });
-      await notification.save();
-      sendNotificationToUser(assignedTo, notification);
+    
     }
 
     // Push issue to relatedEntity's issues array (if added in model)
