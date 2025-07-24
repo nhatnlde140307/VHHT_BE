@@ -1,54 +1,50 @@
-// models/issue.model.js
 import mongoose from 'mongoose';
 
 const issueSchema = new mongoose.Schema({
-  taskId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Task',
-    required: true
-  },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+  title: {
+    type: String,
     required: true
   },
   description: {
     type: String,
-    required: true,
-    trim: true
+    required: true
   },
-  images: {
-    type: [String],  
-    default: []
+  reportedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   status: {
     type: String,
-    enum: ['pending', 'in-progress', 'resolved', 'closed'],
-    default: 'pending'
+    enum: ['open', 'in-progress', 'resolved', 'closed'],
+    default: 'open'
   },
-  priority: {
+  type: {
     type: String,
-    enum: ['low', 'medium', 'high'],
-    default: 'medium'  
+    enum: ['task_issue', 'campaign_withdrawal'],
+    required: true
   },
-  
-  staffComment: {
-    type: String,
-    default: ''
-  },
-  resolvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'  // Staff ID
-  },
-  resolvedAt: {
-    type: Date
+  relatedEntity: {
+    type: {
+      type: String,
+      enum: ['Campaign', 'Task'],
+      required: true
+    },
+    entityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true
+    }
   }
 }, {
-  timestamps: true  // Tự động createdAt, updatedAt
+  timestamps: true
 });
 
-// Index cho query nhanh
-issueSchema.index({ taskId: 1, userId: 1 });
-issueSchema.index({ status: 1 });
+// Index để query nhanh
+issueSchema.index({ reportedBy: 1, status: 1 });
+issueSchema.index({ type: 1, 'relatedEntity.entityId': 1 });
 
 export default mongoose.model('Issue', issueSchema);
