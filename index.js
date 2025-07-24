@@ -28,6 +28,7 @@ import phaseRouter from './routes/phase.routes.js'
 import categoryRoutes from './routes/category.routes.js'
 import stormRouter from './routes/storm.routes.js'
 import rlPointrouter from './routes/reliefPoint.routes.js'
+import issueRouter from './routes/issue.routes.js'
 config()
 
 const app = express()
@@ -69,7 +70,7 @@ app.use('/phase', phaseRouter)
 app.use('/category', categoryRoutes)
 app.use('/storm', stormRouter)
 app.use('/relief-point', rlPointrouter)
-
+app.use('/issue', issueRouter)
 
 app.use(defaultErrorHandler)
 

@@ -1,24 +1,24 @@
 import express from 'express';
 import { createIssue, getIssues, getIssueById, updateIssue, deleteIssue } from '../controllers/issue.controller.js';
 import { accessTokenValidator } from '../middlewares/users.middlewares.js';
-const router = express.Router();
+const issueRouter = express.Router();
 
 // Áp dụng auth cho tất cả routes
-router.use(accessTokenValidator);
+issueRouter.use(accessTokenValidator);
 
 // Tạo issue mới
-router.post('/', createIssue);
+issueRouter.post('/', createIssue);
 
 // Lấy danh sách issues (có thể filter)
-router.get('/', getIssues);
+issueRouter.get('/', getIssues);
 
 // Lấy chi tiết issue
-router.get('/:id', getIssueById);
+issueRouter.get('/:id', getIssueById);
 
 // Update issue
-router.put('/:id', updateIssue);
+issueRouter.put('/:id', updateIssue);
 
 // Xóa issue
-router.delete('/:id', deleteIssue);
+issueRouter.delete('/:id', deleteIssue);
 
-export default router;
+export default issueRouter;
