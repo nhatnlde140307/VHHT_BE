@@ -3,7 +3,7 @@ import Campaign from '../models/campaign.model.js';
 import Task from '../models/task.model.js';
 import User from '../models/users.model.js';
 import Notification from '../models/notification.model.js';
-import { sendNotificationToUser } from '../socket.js';
+import { sendNotificationToUser } from '../socket/socket.js';
 
 class IssueService {
   async createIssue(issueData) {
