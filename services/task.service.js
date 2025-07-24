@@ -323,35 +323,48 @@ export const assignTaskToUsers = async (taskId, userIds) => {
 export const getTasksByCampaignService = async (campaignId, userId) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
+    // 📦 Lấy campaign và populate categories
     const campaign = await Campaign.findById(campaignId)
         .populate('categories', 'name color')
         .lean();
+
     if (!campaign) throw new Error('Campaign không tồn tại');
 
+    // ✅ Kiểm tra user đã tham gia & được duyệt chưa
     const isJoined = campaign.volunteers?.some(
         (v) => v.user.toString() === userId && v.status === 'approved'
     );
     if (!isJoined) throw new Error('Bạn chưa tham gia hoặc chưa được approve');
-    const phases = await Phase.find({ _id: { $in: campaign.phases } }).lean();
 
+    // 🧱 Lấy phases theo campaign
+    const phases = await Phase.find({ _id: { $in: campaign.phases || [] } }).lean();
+
+    // 🗓️ Lấy phaseDays theo phases
     const phaseIds = phases.map((p) => p._id);
     const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).lean();
 
+    // 📌 Lấy all taskIds từ phaseDays
     const allTaskIds = phaseDays.flatMap((pd) => pd.tasks || []);
+
+    // 🧠 Truy các task mà user này được assign
     const tasks = await Task.find({
         _id: { $in: allTaskIds },
-        assignedVolunteers: userObjectId,
+        'assignedUsers.userId': userObjectId // 💥 FIXED FIELD
     }).lean();
 
+    // 🔍 Map lại tasks theo _id
     const taskMap = tasks.reduce((acc, task) => {
         acc[task._id.toString()] = task;
         return acc;
     }, {});
+
+    // 🧩 Gắn task vào phaseDay tương ứng
     const enrichedPhaseDays = phaseDays.map((pd) => ({
         ...pd,
         tasks: (pd.tasks || []).map((taskId) => taskMap[taskId.toString()]).filter(Boolean),
     }));
-    // Checkin
+
+    // ✅ Lấy checkin của user theo phaseDay
     const checkins = await Checkin.find({
         userId: userObjectId,
         phasedayId: { $in: enrichedPhaseDays.map((pd) => pd._id) },
@@ -366,6 +379,7 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
         return acc;
     }, {});
 
+    // 🔄 Gom phaseDay theo phase
     const phaseDayByPhase = enrichedPhaseDays.reduce((acc, pd) => {
         const key = pd.phaseId.toString();
         if (!acc[key]) acc[key] = [];
@@ -380,11 +394,13 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
         return acc;
     }, {});
 
+    // 🧩 Ghép phase + phaseDays + task
     const finalPhases = phases.map((p) => ({
         ...p,
         phaseDays: phaseDayByPhase[p._id.toString()] || [],
     }));
 
+    // 🎁 Trả kết quả
     return {
         campaign: {
             _id: campaign._id,
@@ -400,3 +416,9 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
         phases: finalPhases,
     };
 };
+
+
+
+
+
+
