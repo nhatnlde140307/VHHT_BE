@@ -321,12 +321,11 @@ class CampaignServices {
         },
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        image,
+        image: campaignImg,
         categories: categoryObjectIds,
         createdBy: new mongoose.Types.ObjectId(userId),
         status: "upcoming",
         acceptStatus: acceptStatus || "pending",
-        campaignImg,
         gallery,
       });
 
