@@ -596,8 +596,9 @@ class CampaignServices {
     const user = await User.findById(userId);
     if (!user) throw new Error("Không tìm thấy người dùng");
 
-    user.joinedCampaigns.push(campaignId);
-    await user.save();
+        await User.findByIdAndUpdate(userId, {
+            $addToSet: { joinedCampaigns: campaignId }
+        });
 
     // Gửi email (giữ nguyên code gốc, nhưng move user fetch lên trên để reuse)
     if (user) {
