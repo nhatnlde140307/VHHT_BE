@@ -23,7 +23,7 @@ campaignRoutes.get('/me', accessTokenValidator, wrapRequestHandler(getVolunteerC
 
 //create campaign (staff, manager)
 campaignRoutes.post('/',
-  imagesUploader(["campaignImg", {field: "gallery", max: 10}]), organizationAndManagerValidator,wrapRequestHandler(createCampaign))
+  imagesUploader(["campaignImg", {field: "gallery", max: 5}]), organizationAndManagerValidator,wrapRequestHandler(createCampaign))
 
 // get by id 
 campaignRoutes.get('/:campaignId', wrapRequestHandler(getCampaignById))
@@ -36,7 +36,7 @@ campaignRoutes.get('/',wrapRequestHandler(getListCampaigns))
 campaignRoutes.delete('/:campaignId',managerValidator ,wrapRequestHandler(deleteCampaign))
 
 //update
-campaignRoutes.put('/:campaignId', organizationAndManagerValidator,imagesUploader(["campaignImg", {field: "gallery", max: 10}]), wrapRequestHandler(updateCampaign));
+campaignRoutes.put('/:campaignId', organizationAndManagerValidator,imagesUploader(["campaignImg", {field: "gallery", max: 5}]), wrapRequestHandler(updateCampaign));
 
 //approve chiến dịch
 campaignRoutes.put('/:campaignId/approve', managerValidator, wrapRequestHandler(approveCampaign));
