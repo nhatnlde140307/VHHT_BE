@@ -137,3 +137,41 @@ export const reviewTask = async (req, res, next) => {
         res.status(500).json({ message: 'Lỗi server khi review task' });
     }
 };
+
+export const assignTaskToUser = async (req, res) => {
+  try {
+    const { taskId } = req.params; 
+    const { userIds } = req.body; 
+
+    const updatedTask = await taskService.assignTaskToUsers(taskId, Array.isArray(userIds) ? userIds : [userIds]); 
+
+    return res.status(200).json({
+      message: 'Task assigned to users successfully',
+      task: updatedTask,
+    });
+  } catch (error) {
+    console.error('Error assigning task:', error);
+    return res.status(error.message.includes('not found') ? 404 : 400).json({ message: error.message });
+  }
+};
+
+export const getTasksByCampaign = async (req, res, next) => {
+  try {
+    const { campaignId } = req.params;
+    const userId = req.decoded_authorization.user_id;
+
+    if (!userId) {
+      throw new Error('Unauthorized: Không tìm thấy user ID từ authorization');
+    }
+
+    const { campaign, phases } = await taskService.getTasksByCampaignService(campaignId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách task thành công',
+      data: { campaign, phases }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

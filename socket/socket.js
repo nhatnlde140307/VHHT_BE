@@ -6,8 +6,8 @@ export function initSocket(server) {
   io = new Server(server, {
     cors: {
       origin: process.env.FRONTEND_URL,
-      credentials: true
-    }
+      credentials: true,
+    },
   });
 
   io.on('connection', (socket) => {
@@ -31,10 +31,21 @@ export function initSocket(server) {
 }
 
 export function getIO() {
-  if (!io) throw new Error("❗ Socket.IO not initialized!");
+  if (!io) throw new Error('❗ Socket.IO not initialized!');
   return io;
 }
 
+// ✅ Gửi noti riêng tới user
 export function sendNotificationToUser(userId, notification) {
   getIO().to(userId.toString()).emit('notification', notification);
+}
+
+// ✅ Gửi điểm cứu trợ mới tới tất cả user
+export function broadcastNewReliefPoint(reliefPoint) {
+  getIO().emit('relief-point:new', reliefPoint);
+}
+
+// ✅ Gửi khi bão được kích hoạt
+export function broadcastStormActivated(storm) {
+  getIO().emit('storm-activated', storm);
 }

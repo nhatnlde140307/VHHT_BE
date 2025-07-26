@@ -1,6 +1,7 @@
 import express from 'express'
 import { wrapRequestHandler } from '../utils/handlers.js'
 import { generateContentController } from '../controllers/ai.controller.js'
+import { checkChatAccess } from '../controllers/campaignChat.controller.js'
 import axios from 'axios'
 import aiServive from '../services/ai.servive.js'
 import path from 'path';
@@ -38,5 +39,10 @@ aiRouter.post('/sendDonationSuccessEmail', async (req, res) => {
     res.status(500).json({ error: 'Gửi email thất bại', detail: error.message });
   }
 });
+
+aiRouter.get('/:id/chat-access/:userId', (req, res) => {
+  res.send("✅ Test route: OK");
+});
+
 
 export default aiRouter

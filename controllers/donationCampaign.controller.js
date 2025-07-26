@@ -29,8 +29,8 @@ export const getDonateById = async (req, res) => {
 export const createDonationCampaign = async (req, res) => {
   try {
     const userId = req.decoded_authorization.user_id;
-    const thumbnail = req.files?.campaignImg?.[0]?.path || null;
-    const images = req.files?.gallery?.map(file => file.path) || [];
+    const thumbnail = req.body?.thumbnail || null;
+    const images = req.body?.images || [];
     const campaign = await DonationServices.create(images,thumbnail,req.body, userId);
 
     res.status(201).json({
@@ -46,9 +46,8 @@ export const createDonationCampaign = async (req, res) => {
 export const updateDonationCampaign = async (req, res) => {
   try {
     const { donationCampaignId } = req.params;
-    const thumbnail = req.files?.thumbnail?.[0]?.path || null;
-            console.log('🖼️ Thumbnail path:', thumbnail);
-    const images = req.files?.images?.map(file => file.path) || [];
+    const thumbnail = req.body?.thumbnail || null;
+    const images = req.body?.images || [];
     const result = await DonationServices.updateDonationCampaign(images,req.body,thumbnail, donationCampaignId);
 
     res.status(201).json({

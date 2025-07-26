@@ -33,6 +33,9 @@ const storage = new CloudinaryStorage({
       case 'images':
         folder = 'VHHT/news'
         break
+      case 'chat':
+        folder = 'VHHT/chat'
+        break
       case 'bill':
         folder = 'VHHT/bills'
         break
