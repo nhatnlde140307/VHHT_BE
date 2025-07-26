@@ -467,8 +467,11 @@ class CampaignServices {
         campaign.image = campaignImg;
       }
 
+      // if (Array.isArray(gallery) && gallery.length > 0) {
+      //   campaign.gallery = [...(campaign.gallery || []), ...gallery];
+      // }
       if (Array.isArray(gallery) && gallery.length > 0) {
-        campaign.gallery = [...(campaign.gallery || []), ...gallery];
+        campaign.gallery = gallery;
       }
 
       const updated = await campaign.save();
