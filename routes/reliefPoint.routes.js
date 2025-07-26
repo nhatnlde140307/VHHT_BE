@@ -21,4 +21,7 @@ rlPointrouter.patch('/:id/status', ReliefPointController.updateReliefPointStatus
 // Đăng ký hỗ trợ
 rlPointrouter.patch('/:id/respond', ReliefPointController.respondToReliefPoint);
 
+// Thêm route xóa điểm
+rlPointrouter.delete('/:id', ReliefPointController.deleteReliefPoint);
+
 export default rlPointrouter;

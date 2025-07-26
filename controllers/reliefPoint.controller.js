@@ -38,3 +38,12 @@ export const respondToReliefPoint = async (req, res) => {
   const result = await ReliefPointService.respondToReliefPoint(req.params.id, req.user?._id, req.body.note);
   res.json(result);
 };
+
+export const deleteReliefPoint = async (req, res) => {
+  try {
+    const point = await ReliefPointService.deleteReliefPointById(req.params.id);
+    res.json({ message: 'Điểm cứu trợ đã được xóa thành công', point });
+  } catch (err) {
+    res.status(404).json({ message: err.message });
+  }
+};

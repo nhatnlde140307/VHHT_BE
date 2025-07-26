@@ -55,6 +55,9 @@ const reliefPointSchema = new mongoose.Schema(
       enum: ['pending', 'in-progress', 'resolved', 'rejected'],
       default: 'pending',
     },
+    contact:{
+      type: String
+    },
 
     verified: {
       type: Boolean,

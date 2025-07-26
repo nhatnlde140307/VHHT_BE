@@ -49,3 +49,11 @@ export const respondToReliefPoint = async (id, userId, note) => {
     { new: true }
   );
 };
+
+export const deleteReliefPointById = async (id) => {
+  const point = await ReliefPoint.findByIdAndDelete(id);
+  if (!point) {
+    throw new Error('Không tìm thấy điểm cứu trợ để xóa');
+  }
+  return point;
+};

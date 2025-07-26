@@ -14,6 +14,7 @@ import uploadCloud from '../utils/cloudinary.config.js'
 import { getDepartmentsByCampaignId, createDepartment,
   updateDepartment,addMemberToDepartment,removeMemberFromDepartment,
   deleteDepartment, getDepartmentByVolunteer } from '../controllers/department.controller.js'
+import { imagesUploader } from "../middlewares/images.middlewares.js";
 
 const campaignRoutes = express.Router()
 
@@ -21,9 +22,8 @@ const campaignRoutes = express.Router()
 campaignRoutes.get('/me', accessTokenValidator, wrapRequestHandler(getVolunteerCampaign))
 
 //create campaign (staff, manager)
-campaignRoutes.post('/',uploadCloud.fields([
-  { name: 'campaignImg', maxCount: 1 },
-  { name: 'gallery', maxCount: 10 }]), organizationAndManagerValidator,wrapRequestHandler(createCampaign))
+campaignRoutes.post('/',
+  imagesUploader(["campaignImg", {field: "gallery", max: 10}]), organizationAndManagerValidator,wrapRequestHandler(createCampaign))
 
 // get by id 
 campaignRoutes.get('/:campaignId', wrapRequestHandler(getCampaignById))
@@ -36,9 +36,7 @@ campaignRoutes.get('/',wrapRequestHandler(getListCampaigns))
 campaignRoutes.delete('/:campaignId',managerValidator ,wrapRequestHandler(deleteCampaign))
 
 //update
-campaignRoutes.put('/:campaignId', organizationAndManagerValidator,uploadCloud.fields([
-  { name: 'campaignImg', maxCount: 1 },
-  { name: 'gallery', maxCount: 10 }]), wrapRequestHandler(updateCampaign));
+campaignRoutes.put('/:campaignId', organizationAndManagerValidator,imagesUploader(["campaignImg", {field: "gallery", max: 10}]), wrapRequestHandler(updateCampaign));
 
 //approve chiến dịch
 campaignRoutes.put('/:campaignId/approve', managerValidator, wrapRequestHandler(approveCampaign));
