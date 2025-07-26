@@ -10,14 +10,24 @@ export const departmentService = {
     return await Department.find({ campaignId });
   },
 
-  async getDepartmentByVolunteer(volunteerId) {
+  async getDepartmentByVolunteer(volunteerId, campaignId) {
     if (!mongoose.Types.ObjectId.isValid(volunteerId)) {
       throw new Error("ID tình nguyện viên không hợp lệ");
     }
 
-    const departments = await Department.find({
+    if (campaignId && !mongoose.Types.ObjectId.isValid(campaignId)) {
+      throw new Error("ID chiến dịch không hợp lệ");
+    }
+
+    const query = {
       memberIds: { $in: [volunteerId] },
-    });
+    };
+
+    if (campaignId) {
+      query.campaignId = campaignId;
+    }
+
+    const departments = await Department.find(query);
 
     return departments;
   },
