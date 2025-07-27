@@ -141,28 +141,7 @@ class CommentServices {
         }
     }
 
-    async upvote(commentId, userId) {
-        const comment = await Comment.findById(commentId);
-        if (!comment) throw new Error('Comment not found');
 
-        const hasUpvoted = comment.upvotes.includes(userId);
-
-        if (hasUpvoted) {
-            comment.upvotes.pull(userId);
-        } else {
-            comment.upvotes.push(userId);
-            comment.downvotes.pull(userId);
-        }
-
-        await comment.save();
-
-        return {
-            message: hasUpvoted ? 'Upvote removed' : 'Comment upvoted',
-            upvotes: comment.upvotes.length,
-            downvotes: comment.downvotes.length,
-            votes: comment.upvotes.length - comment.downvotes.length
-        };
-    }
 
     async downvote(commentId, userId) {
         const comment = await Comment.findById(commentId);
@@ -184,6 +163,28 @@ class CommentServices {
 
         return {
             message: hasDownvoted ? 'Downvote removed' : 'Comment downvoted',
+            upvotes: comment.upvotes.length,
+            downvotes: comment.downvotes.length,
+            votes: comment.upvotes.length - comment.downvotes.length
+        };
+    }
+        async upvote(commentId, userId) {
+        const comment = await Comment.findById(commentId);
+        if (!comment) throw new Error('Comment not found');
+
+        const hasUpvoted = comment.upvotes.includes(userId);
+
+        if (hasUpvoted) {
+            comment.upvotes.pull(userId);
+        } else {
+            comment.upvotes.push(userId);
+            comment.downvotes.pull(userId);
+        }
+
+        await comment.save();
+
+        return {
+            message: hasUpvoted ? 'Upvote removed' : 'Comment upvoted',
             upvotes: comment.upvotes.length,
             downvotes: comment.downvotes.length,
             votes: comment.upvotes.length - comment.downvotes.length
