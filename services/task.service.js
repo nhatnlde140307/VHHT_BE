@@ -1,10 +1,12 @@
 import Task from '../models/task.model.js';
 import PhaseDay from '../models/phaseDay.model.js';
 import mongoose from 'mongoose';
-import Phase from '../models/phase.model.js'
+import Phase from '../models/phase.model.js';
 import User from '../models/users.model.js';
 import Campaign from '../models/campaign.model.js';
-import Checkin from '../models/checkin.model.js'
+import Checkin from '../models/checkin.model.js';
+import Notification from '../models/notification.model.js';
+import { sendNotificationToUser } from '../socket/socket.js';
 
 export const getTasksByPhaseDayId = async (phaseDayId) => {
     if (!mongoose.Types.ObjectId.isValid(phaseDayId)) {
@@ -31,6 +33,7 @@ export const createTask = async (phaseDayId, data) => {
         title: data.title,
         description: data.description,
         status: data.status,
+        leaderId: data.leaderId,
         assignedUsers: data.assignedUsers || []
     });
 
@@ -53,6 +56,19 @@ export const updateTask = async (taskId, data) => {
     return task;
 };
 
+export const updateTaskStatusService = async (taskId, status) => {
+    const task = await Task.findById(taskId);
+    if (!task) throw { status: 404, message: 'Không tìm thấy task' };
+
+    if (!['in_progress', 'submitted', 'completed'].includes(status)) {
+        throw { status: 400, message: 'Trạng thái không hợp lệ' };
+    }
+
+    task.status = status;
+    await task.save();
+    return task;
+};
+
 export const deleteTask = async (taskId) => {
     const task = await Task.findById(taskId);
     if (!task) throw new Error('Không tìm thấy task');
@@ -66,10 +82,7 @@ export const deleteTask = async (taskId) => {
 };
 
 export const getUserTasksByCampaign = async (userId, campaignId) => {
-    if (
-        !mongoose.Types.ObjectId.isValid(userId) ||
-        !mongoose.Types.ObjectId.isValid(campaignId)
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(campaignId)) {
         throw new Error("Invalid userId or campaignId");
     }
 
@@ -77,11 +90,7 @@ export const getUserTasksByCampaign = async (userId, campaignId) => {
     const campaignObjectId = new mongoose.Types.ObjectId(campaignId);
 
     const tasks = await Task.aggregate([
-        {
-            $match: {
-                "assignedUsers.userId": userObjectId,
-            },
-        },
+        { $match: { "assignedUsers.userId": userObjectId } },
         {
             $lookup: {
                 from: "phasedays",
@@ -100,33 +109,14 @@ export const getUserTasksByCampaign = async (userId, campaignId) => {
             },
         },
         { $unwind: "$phase" },
-        {
-            $match: {
-                "phase.campaignId": campaignObjectId,
-            },
-        },
+        { $match: { "phase.campaignId": campaignObjectId } },
         {
             $project: {
                 title: 1,
                 description: 1,
                 phaseDayDate: "$phaseDay.date",
                 phaseName: "$phase.name",
-                campaignId: "$phase.campaignId",
-                userSubmission: {
-                    $arrayElemAt: [
-                        {
-                            $filter: {
-                                input: "$assignedUsers",
-                                as: "a",
-                                cond: {
-                                    $eq: ["$$a.userId", userObjectId],
-                                }
-                            }
-                        },
-                        0
-                    ]
-                }
-
+                campaignId: "$phase.campaignId"
             },
         },
         { $sort: { phaseDayDate: 1 } },
@@ -137,237 +127,171 @@ export const getUserTasksByCampaign = async (userId, campaignId) => {
 
 export const submitTaskService = async (taskId, userId, content, images) => {
     const task = await Task.findById(taskId);
-    if (!task) {
-        throw { status: 404, message: 'Task không tồn tại' };
+    if (!task) throw { status: 404, message: 'Task không tồn tại' };
+
+    if (task.submission?.submittedAt) {
+        throw { status: 400, message: 'Task đã được leader nộp' };
     }
 
-    const assignedUser = task.assignedUsers.find(au => au.userId.toString() === userId.toString());
-    if (!assignedUser) {
-        throw { status: 403, message: 'Bạn không được assigned cho task này' };
+    if (task.leaderId.toString() !== userId.toString()) {
+        throw { status: 403, message: 'Chỉ leader được phép nộp task' };
     }
 
-    if (assignedUser.submission && assignedUser.submission.submittedAt) {
-        throw { status: 400, message: 'Bạn đã nộp submission cho task này' };
-    }
-
-    assignedUser.submission = {
+    task.submission = {
         content,
-        images: images || [],
+        images,
         submittedAt: new Date(),
-        submittedBy: userId,
-        submissionType: 'self'
+        submittedBy: userId
     };
 
+    task.status = 'submitted';
     await task.save();
 
     return task;
 };
 
-export const reviewTaskService = async (taskId, userId, staffId, status, evaluation, staffComment) => {
+export const reviewPeerTaskService = async (taskId, reviewerId, revieweeId, score, comment) => {
     const task = await Task.findById(taskId);
-    if (!task) {
-        throw { status: 404, message: 'Task không tồn tại' };
+    if (!task) throw { status: 404, message: 'Task không tồn tại' };
+
+    if (reviewerId === revieweeId) {
+        throw { status: 400, message: 'Không thể tự review bản thân' };
     }
 
-    const assignedUser = task.assignedUsers.find(au => au.userId.toString() === userId.toString());
-    if (!assignedUser) {
-        throw { status: 404, message: 'User không được assigned cho task này' };
+    const alreadyReviewed = task.peerReviews.find(
+        (r) => r.reviewer.toString() === reviewerId && r.reviewee.toString() === revieweeId
+    );
+    if (alreadyReviewed) {
+        throw { status: 400, message: 'Bạn đã review người này rồi' };
     }
 
-    if (!assignedUser.submission || !assignedUser.submission.submittedAt) {
-        throw { status: 400, message: 'Submission chưa được nộp, không thể review' };
-    }
+    task.peerReviews.push({
+        reviewer: reviewerId,
+        reviewee: revieweeId,
+        score,
+        comment
+    });
 
-    if (assignedUser.review.status !== 'pending') {
-        throw { status: 400, message: 'Task này đã được review' };
-    }
+    await task.save();
+    return task;
+};
 
-    // Update review
-    assignedUser.review = {
-        status: status || 'approved',
-        evaluation: evaluation || 'average',
-        staffComment: staffComment || '',
-        reviewedBy: staffId,
+export const staffReviewTaskService = async (taskId, staffId, finalScore, overallComment) => {
+    const task = await Task.findById(taskId);
+    if (!task) throw { status: 404, message: 'Task không tồn tại' };
+
+    task.staffReview = {
+        evaluatedBy: staffId,
+        finalScore,
+        overallComment,
         reviewedAt: new Date()
     };
 
+    task.status = 'completed';
     await task.save();
-
     return task;
 };
 
 export const assignTaskToUsers = async (taskId, userIds) => {
-    // Validation cơ bản
     if (!Array.isArray(userIds) || userIds.length === 0) {
         throw new Error('User IDs must be a non-empty array');
     }
 
-    // Kiểm tra task tồn tại
-    const task = await Task.findById(taskId).populate('phaseDayId'); // Populate phaseDayId để lấy date ngay
-    if (!task) {
-        throw new Error('Task not found');
-    }
+    const task = await Task.findById(taskId).populate('phaseDayId');
+    if (!task) throw new Error('Task not found');
 
-    const newPhaseDay = await PhaseDay.findById(task.phaseDayId).populate('phaseId'); // Lấy PhaseDay và populate phaseId
-    if (!newPhaseDay) {
-        throw new Error('PhaseDay not found for this task');
-    }
+    const newPhaseDay = await PhaseDay.findById(task.phaseDayId).populate('phaseId');
+    if (!newPhaseDay) throw new Error('PhaseDay not found');
 
-    const newDate = newPhaseDay.date; // Date của task mới (normalize to start of day nếu cần, nhưng giả sử date là Date without time)
+    const newDate = newPhaseDay.date;
     const newPhase = await Phase.findById(newPhaseDay.phaseId);
-    if (!newPhase) {
-        throw new Error('Phase not found for this PhaseDay');
-    }
-    const newCampaignId = newPhase.campaignId.toString(); // CampaignId của task mới
+    if (!newPhase) throw new Error('Phase not found');
 
-    // Kiểm tra tất cả user tồn tại, lọc duplicate, check approved trong campaign, và check conflict
+    const newCampaignId = newPhase.campaignId.toString();
     const validUsers = [];
-    const existingUserIds = task.assignedUsers.map((assigned) => assigned.userId.toString());
+    const existingUserIds = task.assignedUsers.map(u => u.userId.toString());
 
     for (const userId of userIds) {
+        if (existingUserIds.includes(userId.toString())) continue;
+
         const user = await User.findById(userId);
-        if (!user) {
-            throw new Error(`User not found: ${userId}`);
-        }
-        if (existingUserIds.includes(userId.toString())) {
-            continue; // Skip nếu đã assign vào task này
-        }
+        if (!user) throw new Error(`User not found: ${userId}`);
 
-        // Check user approved trong campaign
         const campaign = await Campaign.findById(newCampaignId);
-        if (!campaign) {
-            throw new Error('Campaign not found for this task');
-        }
-        const volunteer = campaign.volunteers.find((v) => v.user.toString() === userId);
-        if (!volunteer || volunteer.status !== 'approved') {
-            throw new Error(`User ${userId} is not approved in this campaign`);
-        }
+        const volunteer = campaign.volunteers.find(v => v.user.toString() === userId && v.status === 'approved');
+        if (!volunteer) throw new Error(`User ${userId} chưa được duyệt trong campaign`);
 
-        // Check conflict: Tìm tasks khác mà user đã assign, có cùng ngày nhưng khác campaign
         const conflictingTasks = await Task.aggregate([
+            { $match: { 'assignedUsers.userId': new mongoose.Types.ObjectId(userId) } },
+            { $lookup: { from: 'phasedays', localField: 'phaseDayId', foreignField: '_id', as: 'phaseDay' } },
+            { $unwind: '$phaseDay' },
+            { $lookup: { from: 'phases', localField: 'phaseDay.phaseId', foreignField: '_id', as: 'phase' } },
+            { $unwind: '$phase' },
             {
                 $match: {
-                    'assignedUsers.userId': new mongoose.Types.ObjectId(userId),
-                },
-            },
-            {
-                $lookup: {
-                    from: 'phasedays',
-                    localField: 'phaseDayId',
-                    foreignField: '_id',
-                    as: 'phaseDay',
-                },
-            },
-            {
-                $unwind: '$phaseDay',
-            },
-            {
-                $lookup: {
-                    from: 'phases',
-                    localField: 'phaseDay.phaseId',
-                    foreignField: '_id',
-                    as: 'phase',
-                },
-            },
-            {
-                $unwind: '$phase',
-            },
-            {
-                $match: {
-                    'phaseDay.date': newDate, // Cùng ngày (giả sử date là Date, có thể cần $eq và normalize nếu có time)
-                    'phase.campaignId': { $ne: new mongoose.Types.ObjectId(newCampaignId) }, // Khác campaign
+                    'phaseDay.date': newDate,
+                    'phase.campaignId': { $ne: new mongoose.Types.ObjectId(newCampaignId) },
                 },
             },
         ]);
 
-        if (conflictingTasks.length > 0) {
-            throw new Error(`User ${userId} has conflicting tasks on the same day in another campaign`);
-        }
+        if (conflictingTasks.length > 0) throw new Error(`User ${userId} có nhiệm vụ trùng lịch khác campaign`);
 
         validUsers.push(userId);
     }
 
-    if (validUsers.length === 0) {
-        throw new Error('All users are already assigned, not approved, or have conflicts');
-    }
-
-    // Thêm assignedUsers mới vào mảng
-    const newAssigned = validUsers.map((userId) => ({
-        userId,
-        // Các trường khác mặc định theo schema
-    }));
+    const newAssigned = validUsers.map(userId => ({ userId }));
     task.assignedUsers.push(...newAssigned);
-
-    // Lưu thay đổi
     await task.save();
 
-    // Tạo và lưu notification vào DB cho từng user, rồi gửi socket
     for (const userId of validUsers) {
         const newNotification = new Notification({
-            title: 'Nhiệm vụ mới được giao', // Title ngắn gọn, có thể customize dựa trên type
-            content: `Bạn đã được giao nhiệm vụ mới: ${task.title}`, // Content là message chi tiết
-            link: `/tasks/${task._id}`, // Link ví dụ đến task detail page (có thể adjust dựa trên frontend route)
+            title: 'Nhiệm vụ mới được giao',
+            content: `Bạn đã được giao nhiệm vụ: ${task.title}`,
+            link: `/tasks/${task._id}`,
             type: 'task_assigned',
-            recipient: userId, // Sử dụng recipient thay vì userId
-            // isRead default false, createdAt default Date.now
+            recipient: userId
         });
         await newNotification.save();
-
-        // Gửi socket với full notification object (bao gồm _id từ DB)
         sendNotificationToUser(userId, newNotification);
     }
 
-    return task; // Trả về task đã cập nhật
+    return task;
 };
 
 export const getTasksByCampaignService = async (campaignId, userId) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    // 📦 Lấy campaign và populate categories
-    const campaign = await Campaign.findById(campaignId)
-        .populate('categories', 'name color')
-        .lean();
-
+    const campaign = await Campaign.findById(campaignId).populate('categories', 'name color').lean();
     if (!campaign) throw new Error('Campaign không tồn tại');
 
-    // ✅ Kiểm tra user đã tham gia & được duyệt chưa
     const isJoined = campaign.volunteers?.some(
-        (v) => v.user.toString() === userId && v.status === 'approved'
+        v => v.user.toString() === userId && v.status === 'approved'
     );
     if (!isJoined) throw new Error('Bạn chưa tham gia hoặc chưa được approve');
 
-    // 🧱 Lấy phases theo campaign
     const phases = await Phase.find({ _id: { $in: campaign.phases || [] } }).lean();
-
-    // 🗓️ Lấy phaseDays theo phases
-    const phaseIds = phases.map((p) => p._id);
+    const phaseIds = phases.map(p => p._id);
     const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).lean();
+    const allTaskIds = phaseDays.flatMap(pd => pd.tasks || []);
 
-    // 📌 Lấy all taskIds từ phaseDays
-    const allTaskIds = phaseDays.flatMap((pd) => pd.tasks || []);
-
-    // 🧠 Truy các task mà user này được assign
     const tasks = await Task.find({
         _id: { $in: allTaskIds },
-        'assignedUsers.userId': userObjectId // 💥 FIXED FIELD
+        'assignedUsers.userId': userObjectId
     }).lean();
 
-    // 🔍 Map lại tasks theo _id
     const taskMap = tasks.reduce((acc, task) => {
         acc[task._id.toString()] = task;
         return acc;
     }, {});
 
-    // 🧩 Gắn task vào phaseDay tương ứng
-    const enrichedPhaseDays = phaseDays.map((pd) => ({
+    const enrichedPhaseDays = phaseDays.map(pd => ({
         ...pd,
-        tasks: (pd.tasks || []).map((taskId) => taskMap[taskId.toString()]).filter(Boolean),
+        tasks: (pd.tasks || []).map(taskId => taskMap[taskId.toString()]).filter(Boolean)
     }));
 
-    // ✅ Lấy checkin của user theo phaseDay
     const checkins = await Checkin.find({
         userId: userObjectId,
-        phasedayId: { $in: enrichedPhaseDays.map((pd) => pd._id) },
+        phasedayId: { $in: enrichedPhaseDays.map(pd => pd._id) },
     }).select('phasedayId checkinTime method');
 
     const checkinMap = checkins.reduce((acc, c) => {
@@ -379,7 +303,6 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
         return acc;
     }, {});
 
-    // 🔄 Gom phaseDay theo phase
     const phaseDayByPhase = enrichedPhaseDays.reduce((acc, pd) => {
         const key = pd.phaseId.toString();
         if (!acc[key]) acc[key] = [];
@@ -394,13 +317,11 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
         return acc;
     }, {});
 
-    // 🧩 Ghép phase + phaseDays + task
-    const finalPhases = phases.map((p) => ({
+    const finalPhases = phases.map(p => ({
         ...p,
         phaseDays: phaseDayByPhase[p._id.toString()] || [],
     }));
 
-    // 🎁 Trả kết quả
     return {
         campaign: {
             _id: campaign._id,
@@ -416,8 +337,3 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
         phases: finalPhases,
     };
 };
-
-
-
-
-
