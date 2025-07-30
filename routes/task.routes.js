@@ -1,4 +1,4 @@
-// task.route.js
+// task.routes.js
 import express from "express";
 import {
   createTask,
@@ -10,6 +10,8 @@ import {
   reviewTask,
   assignTaskToUser,
   getTasksByCampaign,
+  reviewPeerTask,
+  updateTaskStatus
 } from "../controllers/task.controller.js";
 import {
   organizationAndManagerValidator,
@@ -20,36 +22,13 @@ import uploadCloud from "../utils/cloudinary.config.js";
 
 const taskRouter = express.Router();
 
-// Get tasks by campaign ID
-taskRouter.get(
-  "/:campaignId/campaign",
-  accessTokenValidator,
-  wrapRequestHandler(getTasksByCampaign)
-);
-
-// Get tasks by phase day ID
-taskRouter.get(
-  "/phaseDay/:phaseDayId",
-  wrapRequestHandler(getTasksByPhaseDayId)
-);
-
-// Create task
+taskRouter.get("/:campaignId/campaign", accessTokenValidator, wrapRequestHandler(getTasksByCampaign));
+taskRouter.get("/phaseDay/:phaseDayId", wrapRequestHandler(getTasksByPhaseDayId));
 taskRouter.post("/create/:phaseDayId", wrapRequestHandler(createTask));
-
-// Update task
 taskRouter.patch("/update/:taskId", wrapRequestHandler(updateTask));
-
-// Delete task
 taskRouter.delete("/delete/:taskId", wrapRequestHandler(deleteTask));
+taskRouter.post("/:taskId/assign", organizationAndManagerValidator, wrapRequestHandler(assignTaskToUser));
 
-// Assign task to user
-taskRouter.post(
-  "/:taskId/assign",
-  organizationAndManagerValidator,
-  wrapRequestHandler(assignTaskToUser)
-);
-
-// User submit task
 taskRouter.post(
   "/:taskId/submit",
   accessTokenValidator,
@@ -57,12 +36,24 @@ taskRouter.post(
   wrapRequestHandler(submitTask)
 );
 
-// Staff review task submission
 taskRouter.post(
   "/:taskId/review/:userId",
   accessTokenValidator,
   uploadCloud.array("images", 5),
   wrapRequestHandler(reviewTask)
+);
+
+// ✅ Peer review
+taskRouter.post(
+  "/:taskId/peer-review/:revieweeId",
+  accessTokenValidator,
+  wrapRequestHandler(reviewPeerTask)
+);
+
+// ✅ Cập nhật status riêng
+taskRouter.patch(
+  "/:taskId/status",
+  wrapRequestHandler(updateTaskStatus)
 );
 
 export default taskRouter;
