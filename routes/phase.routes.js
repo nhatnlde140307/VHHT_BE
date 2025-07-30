@@ -72,32 +72,6 @@ phaseRouter.delete(
   wrapRequestHandler(deletePhaseDay)
 );
 
-<<<<<<< HEAD
-// Lấy tất cả task theo phaseDayId
-phaseRouter.get('/:phaseDayId/tasks', wrapRequestHandler(getTasksByPhaseDayId))
 
-
-// Tạo task
-phaseRouter.post('/:phaseDayId/tasks', wrapRequestHandler(createTask))
-
-// Update task
-phaseRouter.patch('/tasks/:taskId', wrapRequestHandler(updateTask))
-
-// Delete task
-phaseRouter.delete('/tasks/:taskId', wrapRequestHandler(deleteTask))
-
-//giao task cho user
-phaseRouter.post('/tasks/:taskId/assign', organizationAndManagerValidator, wrapRequestHandler(assignTaskToUser))
-
-//User nop submitsion 
-phaseRouter.post('/tasks/:taskId/submit', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(submitTask))
-
-//staff review tasksubmitsion
-phaseRouter.post('/tasks/:taskId/review/:userId', accessTokenValidator, uploadCloud.array('images', 5), wrapRequestHandler(reviewTask))
-
-
-
-export default phaseRouter
-=======
 export default phaseRouter;
->>>>>>> a532a8740333838fffca38f8042f15e2d7c3f1c3
+
