@@ -11,28 +11,28 @@ import {
 } from '../controllers/donationExpense.controller.js';
 import { managerValidator, organizationAndManagerValidator } from '../middlewares/users.middlewares.js';
 
-const router = express.Router();
+const Erouter = express.Router();
 
-router.post(
+Erouter.post(
   '/',
   organizationAndManagerValidator,
   uploadCloud.array('images', 5),
   createExpense
 );
 
-router.patch('/:id/approve', managerValidator, approveExpense);
-router.patch('/:id/reject', managerValidator, rejectExpense);
+Erouter.patch('/:id/approve', managerValidator, approveExpense);
+Erouter.patch('/:id/reject', managerValidator, rejectExpense);
 
-router.patch(
+Erouter.patch(
   '/:id',
   organizationAndManagerValidator,
   uploadCloud.array('images', 5),
   editExpense
 );
 
-router.get('/campaign/:campaignId', getExpensesByCampaign);
-router.get('/campaign/:campaignId/summary', getExpenseSummary);
+Erouter.get('/campaign/:campaignId', getExpensesByCampaign);
+Erouter.get('/campaign/:campaignId/summary', getExpenseSummary);
 
-router.delete('/:id', organizationAndManagerValidator, deleteExpense);
+Erouter.delete('/:id', organizationAndManagerValidator, deleteExpense);
 
-export default router;
+export default Erouter;

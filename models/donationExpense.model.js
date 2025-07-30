@@ -1,3 +1,7 @@
+// models/donationExpense.model.js
+
+import mongoose from 'mongoose';
+
 const donationExpenseSchema = new mongoose.Schema({
   donationCampaignId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,7 +21,7 @@ const donationExpenseSchema = new mongoose.Schema({
   },
 
   evidences: [{
-    type: String
+    type: String // URLs hoặc đường dẫn tới ảnh/hóa đơn minh chứng
   }],
 
   createdBy: {
@@ -47,4 +51,10 @@ const donationExpenseSchema = new mongoose.Schema({
     default: null
   }
 
-}, { timestamps: true });
+}, {
+  timestamps: true
+});
+
+const DonationExpense = mongoose.model('DonationExpense', donationExpenseSchema);
+
+export default DonationExpense;

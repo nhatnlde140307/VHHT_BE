@@ -125,7 +125,7 @@ async def checkin_face(data: ImageData):
         embedding_info = DeepFace.represent(
             img_path=camera_img,
             model_name="ArcFace",
-            enforce_detection=True
+            enforce_detection=True,
         )
         embedding_checkin = embedding_info[0]["embedding"]
 
