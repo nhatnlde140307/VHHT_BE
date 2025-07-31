@@ -872,6 +872,30 @@ class CampaignServices {
     await campaign.save();
     return issuedCertificates;
   }
+
+  async evaluateVolunteerInCampaign({ campaignId, userId, evaluation, feedback }) {
+  if (!mongoose.Types.ObjectId.isValid(campaignId) || !mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error("Invalid campaignId or userId");
+  }
+
+  const campaign = await Campaign.findById(campaignId);
+  if (!campaign) throw new Error("Không tìm thấy chiến dịch");
+
+  const volunteer = campaign.volunteers.find(v => v.user.toString() === userId);
+  if (!volunteer) throw new Error("Tình nguyện viên không thuộc chiến dịch này");
+
+  volunteer.evaluation = evaluation || 'average';
+  volunteer.feedback = feedback || '';
+
+  await campaign.save();
+
+  return {
+    message: 'Đánh giá thành công',
+    userId,
+    evaluation: volunteer.evaluation,
+    feedback: volunteer.feedback
+  };
+}
 }
 
 const campaignServices = new CampaignServices();

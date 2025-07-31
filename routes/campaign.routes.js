@@ -21,7 +21,7 @@ import {
   endCampaign,
   approveCampaign,
   rejectCampaign,
-  rejectRequestHandler,
+  rejectRequestHandler,evaluateVolunteerHandler
 } from "../controllers/campaigns.controller.js";
 import uploadCloud from "../utils/cloudinary.config.js";
 import {
@@ -178,6 +178,14 @@ campaignRoutes.put(
   "/:campaignId/end",
   organizationAndManagerValidator,
   wrapRequestHandler(endCampaign)
+);
+
+//danh gia vol
+campaignRoutes.post(
+  "/:campaignId/evaluate/:userId",
+  accessTokenValidator,
+  organizationAndManagerValidator,
+  wrapRequestHandler(evaluateVolunteerHandler)
 );
 
 export default campaignRoutes;
