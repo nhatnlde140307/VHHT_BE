@@ -598,18 +598,17 @@ class CampaignServices {
     const user = await User.findById(userId);
     if (!user) throw new Error("Không tìm thấy người dùng");
 
-        await User.findByIdAndUpdate(userId, {
-            $addToSet: { joinedCampaigns: campaignId }
-        });
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { joinedCampaigns: campaignId }
+    });
 
     // Gửi email (giữ nguyên code gốc, nhưng move user fetch lên trên để reuse)
     if (user) {
       const emailContent = {
         body: {
           name: user.fullName || user.email,
-          intro: `Bạn đã được duyệt tham gia chiến dịch "${
-            campaign.name
-          }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
+          intro: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+            }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
           outro:
             "Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.",
         },
@@ -628,9 +627,8 @@ class CampaignServices {
     // Tạo và lưu notification vào DB, rồi gửi socket
     const newNotification = new Notification({
       title: "Đăng ký chiến dịch được duyệt", // Title ngắn gọn
-      content: `Bạn đã được duyệt tham gia chiến dịch "${
-        campaign.name
-      }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
+      content: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+        }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
       link: `/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
       type: "campaign_approved",
       recipient: userId,
@@ -874,28 +872,67 @@ class CampaignServices {
   }
 
   async evaluateVolunteerInCampaign({ campaignId, userId, evaluation, feedback }) {
-  if (!mongoose.Types.ObjectId.isValid(campaignId) || !mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid campaignId or userId");
+    if (!mongoose.Types.ObjectId.isValid(campaignId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid campaignId or userId");
+    }
+
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) throw new Error("Không tìm thấy chiến dịch");
+
+    const volunteer = campaign.volunteers.find(v => v.user.toString() === userId);
+    if (!volunteer) throw new Error("Tình nguyện viên không thuộc chiến dịch này");
+
+    volunteer.evaluation = evaluation || 'average';
+    volunteer.feedback = feedback || '';
+
+    await campaign.save();
+
+    return {
+      message: 'Đánh giá thành công',
+      userId,
+      evaluation: volunteer.evaluation,
+      feedback: volunteer.feedback
+    };
   }
 
-  const campaign = await Campaign.findById(campaignId);
-  if (!campaign) throw new Error("Không tìm thấy chiến dịch");
+  async withdrawFromCampaign({ campaignId, userId }) {
+    if (!mongoose.Types.ObjectId.isValid(campaignId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid campaignId or userId");
+    }
 
-  const volunteer = campaign.volunteers.find(v => v.user.toString() === userId);
-  if (!volunteer) throw new Error("Tình nguyện viên không thuộc chiến dịch này");
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) throw new Error("Không tìm thấy chiến dịch");
 
-  volunteer.evaluation = evaluation || 'average';
-  volunteer.feedback = feedback || '';
+    // 1. Xoá user khỏi campaign.volunteers
+    campaign.volunteers = campaign.volunteers.filter(v => v.user.toString() !== userId);
+    await campaign.save();
 
-  await campaign.save();
+    // 2. Xoá campaignId khỏi user.joinedCampaigns
+    await User.findByIdAndUpdate(userId, {
+      $pull: { joinedCampaigns: campaignId }
+    });
 
-  return {
-    message: 'Đánh giá thành công',
-    userId,
-    evaluation: volunteer.evaluation,
-    feedback: volunteer.feedback
-  };
-}
+    // 3. Lấy các phase thuộc campaign
+    const phases = await Phase.find({ campaignId }).select("_id");
+    const phaseIds = phases.map(p => p._id);
+
+    // 4. Lấy các phaseDay thuộc phase
+    const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).select("_id");
+    const phaseDayIds = phaseDays.map(p => p._id);
+
+    // 5. Xoá user khỏi các task đang in_progress
+    await Task.updateMany(
+      {
+        phaseDayId: { $in: phaseDayIds },
+        status: 'in_progress'
+      },
+      {
+        $pull: { assignedUsers: { userId } }
+      }
+    );
+
+    return { message: "Rút lui khỏi chiến dịch thành công" };
+  }
 }
 
 const campaignServices = new CampaignServices();
