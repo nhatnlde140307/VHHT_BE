@@ -3,7 +3,7 @@ import Phase from "../models/phase.model.js"
 import PhaseDay from "../models/phaseDay.model.js"
 import Campaign from "../models/campaign.model.js";
 import User from "../models/users.model.js";
-import dayjs from "dayjs";
+// import dayjs from "dayjs";
 
 export const createCheckin = async ({ userId, campaignId, phaseId, phasedayId, method }) => {
     const existed = await Checkin.findOne({ userId, phasedayId });

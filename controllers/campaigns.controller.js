@@ -18,6 +18,28 @@ export const getListCampaigns = async (req, res, next) => {
   }
 }
 
+export const evaluateVolunteerHandler = async (req, res) => {
+  try {
+    const { campaignId, userId } = req.params;
+    const { evaluation, feedback } = req.body;
+
+    const result = await campaignServices.evaluateVolunteerInCampaign({
+      campaignId,
+      userId,
+      evaluation,
+      feedback
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đánh giá thành công',
+      data: result
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 export const getVolunteerCampaign = async (req, res, next) => {
   try {
     const userId = req.decoded_authorization.user_id;

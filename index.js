@@ -31,6 +31,7 @@ import rlPointrouter from "./routes/reliefPoint.routes.js";
 import issueRouter from "./routes/issue.routes.js";
 import forumRoutes from "./routes/forum.routes.js";
 import taskRouter from "./routes/task.routes.js";
+import Erouter from "./routes/donationExpense.routes.js"
 config();
 
 const app = express();
@@ -77,6 +78,7 @@ app.use("/relief-point", rlPointrouter);
 app.use("/issue", issueRouter);
 app.use("/forum", forumRoutes);
 app.use("/task", taskRouter);
+app.use("/expense", Erouter);
 
 app.use(defaultErrorHandler);
 
