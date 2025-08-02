@@ -11,6 +11,7 @@ import http from "http";
 import { initSocket } from "./socket/socket.js";
 import Category from "./models/category.model.js";
 import phaseModel from "./models/phase.model.js";
+import './cronJobs/phaseDayScheduler.js'; 
 
 // routes
 import usersRouter from "./routes/users.routes.js";

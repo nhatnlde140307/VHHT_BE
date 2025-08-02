@@ -21,7 +21,7 @@ import {
   endCampaign,
   approveCampaign,
   rejectCampaign,
-  rejectRequestHandler,evaluateVolunteerHandler
+  rejectRequestHandler,evaluateVolunteerHandler,withdrawFromCampaignHandler
 } from "../controllers/campaigns.controller.js";
 import uploadCloud from "../utils/cloudinary.config.js";
 import {
@@ -186,6 +186,13 @@ campaignRoutes.post(
   accessTokenValidator,
   organizationAndManagerValidator,
   wrapRequestHandler(evaluateVolunteerHandler)
+);
+
+//rut lui khoi campaign
+campaignRoutes.post(
+  "/:campaignId/withdraw",
+  accessTokenValidator,
+  wrapRequestHandler(withdrawFromCampaignHandler)
 );
 
 export default campaignRoutes;

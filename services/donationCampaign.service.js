@@ -160,9 +160,7 @@ class DonationServices {
             order = 'desc'
         } = query;
 
-        const filter = {
-            approvalStatus: status
-        };
+        const filter = {}; // Không lọc theo approvalStatus nữa
 
         if (search) {
             filter.title = { $regex: search, $options: 'i' };
@@ -176,7 +174,7 @@ class DonationServices {
         const sortOption = {};
         sortOption[sortBy] = order === 'asc' ? 1 : -1;
 
-        const campaigns = await DonationCampaign.find(filter)
+        const campaigns = await DonationCampaign.find(filter) // Không lọc theo approvalStatus
             .sort(sortOption)
             .skip((page - 1) * limit)
             .limit(Number(limit))

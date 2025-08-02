@@ -222,3 +222,15 @@ export const endCampaign = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const withdrawFromCampaignHandler = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const userId = req.decoded_authorization.user_id;
+
+    const result = await campaignServices.withdrawFromCampaign({ campaignId, userId });
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};

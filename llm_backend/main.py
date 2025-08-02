@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from deepface import DeepFace
@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import logging
 from base64 import b64encode
 from ai_logic import answer_user_question  # Logic chatbot
+from typing import Optional
 
 # === Logger setup ===
 logging.basicConfig(level=logging.INFO)
@@ -187,16 +188,30 @@ async def checkin_face(data: ImageData):
         logger.error(f"Lỗi tại /checkin: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi nhận diện: {str(e)}")
     
+# === Pydantic Models ===
+class ChatData(BaseModel):
+    message: str
+    userId: Optional[str] = None  # Có thể không có nếu là guest
+
 # === Endpoint: Chatbot ===
 @app.post("/chat")
-async def chat(data: ChatData):
+async def chat(data: ChatData, request: Request):
     try:
-        reply = answer_user_question(data.message)
-        return {"reply": reply}
+        token = request.headers.get("Authorization")  # 🎯 Lấy token từ header
+        
+        # Gọi đúng hàm với đầy đủ tham số
+        reply = answer_user_question(
+            user_input=data.message,
+            user_id=data.userId,
+            token=token 
+        )
+        
+        return {"reply": reply}  # Trả lại response chatbot
+        
     except Exception as e:
         logger.error(f"Lỗi tại /chat: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý câu hỏi: {str(e)}")
-
+    
 # === Khởi chạy ===
 if __name__ == "__main__":
     import uvicorn
