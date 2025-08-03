@@ -46,19 +46,38 @@ export const createDonationCampaign = async (req, res) => {
 export const updateDonationCampaign = async (req, res) => {
   try {
     const { donationCampaignId } = req.params;
-    const thumbnail = req.body?.thumbnail || null;
-    const images = req.body?.images || [];
-    const result = await DonationServices.updateDonationCampaign(images,req.body,thumbnail, donationCampaignId);
+    const payload = req.body;
+
+    // Ép kiểu
+    payload.goalAmount = Number(payload.goalAmount);
+
+    const thumbnail =
+      req.files?.thumbnail && req.files.thumbnail[0]
+        ? req.files.thumbnail[0].filename
+        : null;
+
+    const images =
+      req.files?.images && req.files.images.length > 0
+        ? req.files.images.map((file) => file.filename)
+        : [];
+
+    const result = await DonationServices.updateDonationCampaign(
+      images,
+      payload,
+      thumbnail,
+      donationCampaignId
+    );
 
     res.status(201).json({
-      message: 'Update chiến dịch quyên góp thành công',
-      result
+      message: "Update chiến dịch quyên góp thành công",
+      result,
     });
   } catch (error) {
-    console.error('❌ Lỗi tạo campaign:', error.message);
+    console.error("❌ Lỗi update campaign:", error.message);
     res.status(400).json({ message: error.message });
   }
 };
+
 
 
 export const approveDonationCampaign = async (req, res) => {
