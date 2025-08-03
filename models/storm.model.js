@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const stormSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
-  imageUrl: String,
+  instruction: String,
   centerLocation: {
     lat: Number,
     lng: Number,
