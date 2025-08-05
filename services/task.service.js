@@ -299,6 +299,70 @@ export const assignTaskToUsers = async (taskId, userIds) => {
   return task;
 };
 
+export const getTasksByVolunteerAndMonth = async (userId, year, month) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error("Invalid userId");
+  }
+
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+  const tasks = await Task.aggregate([
+    { $match: { "assignedUsers.userId": userObjectId } },
+    {
+      $lookup: {
+        from: "phasedays",
+        localField: "phaseDayId",
+        foreignField: "_id",
+        as: "phaseDay",
+      },
+    },
+    { $unwind: "$phaseDay" },
+    {
+      $match: {
+        "phaseDay.date": {
+          $gte: startOfMonth,
+          $lte: endOfMonth,
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "phases",
+        localField: "phaseDay.phaseId",
+        foreignField: "_id",
+        as: "phase",
+      },
+    },
+    { $unwind: "$phase" },
+    {
+      $lookup: {
+        from: "campaigns",
+        localField: "phase.campaignId",
+        foreignField: "_id",
+        as: "campaign",
+      },
+    },
+    { $unwind: "$campaign" },
+    {
+      $project: {
+        _id: 1,
+        title: 1,
+        description: 1,
+        status: 1,
+        phaseDayDate: "$phaseDay.date",
+        phaseName: "$phase.name",
+        campaignName: "$campaign.name",
+        campaignId: "$phase.campaignId",
+      },
+    },
+    { $sort: { phaseDayDate: 1 } },
+  ]);
+
+  return tasks;
+};
+
 export const getTasksByCampaignService = async (campaignId, userId) => {
   const userObjectId = new mongoose.Types.ObjectId(userId);
   const campaign = await Campaign.findById(campaignId)
@@ -399,4 +463,3 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
     phases: finalPhases,
   };
 };
-
