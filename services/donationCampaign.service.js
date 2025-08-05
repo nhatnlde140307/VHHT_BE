@@ -5,6 +5,8 @@ import DonorProfile from '../models/donorProfile.model.js';
 import User from '../models/users.model.js';
 import DonationTransaction from '../models/donationTransaction.model.js';
 import mongoose from 'mongoose';
+import aiServive from './ai.servive.js';
+import axios from 'axios';
 config();
 
 class DonationServices {
@@ -81,7 +83,7 @@ class DonationServices {
         }
     }
 
-    async approve(id) {
+    async approve(id, postFb = true) {
         const updated = await DonationCampaign.findByIdAndUpdate(
             id,
             { approvalStatus: 'approved' },
@@ -92,6 +94,7 @@ class DonationServices {
             throw new Error('Không tìm thấy chiến dịch');
         }
 
+        // ✅ Gửi email thông báo cho người tạo
         const creator = await User.findById(updated.createdBy);
         if (creator && creator.email) {
             const emailContent = {
@@ -102,14 +105,35 @@ class DonationServices {
                     outro: 'Nếu bạn không tạo chiến dịch này, vui lòng liên hệ lại VHHT.'
                 }
             };
-            const mailBody = MailGenerator.generate(emailContent)
-
+            const mailBody = MailGenerator.generate(emailContent);
             await transporter.sendMail({
                 from: process.env.EMAIL,
                 to: creator.email,
-                subject: 'Verify your VHHT account',
+                subject: 'Chiến dịch của bạn đã được phê duyệt',
                 html: mailBody
-            })
+            });
+        }
+
+        // ✅ Nếu postFb === true → đăng bài lên mạng xã hội
+        if (postFb) {
+            try {
+                const content = await aiServive.generateFundraisingContent({
+                    title: updated.title,
+                    goal: updated.goalAmount ? `${updated.goalAmount} VNĐ` : 'Không rõ',
+                    description: updated.description,
+                    tone: "gây xúc động",
+                    type:"kêu gọi ủng hộ thiện nguyện"
+                });
+
+                await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
+                    title: updated.title,
+                    content,
+                    image: updated.thumbnail,
+                    link: `https://your-site.com/donation-campaigns/${updated._id}`,
+                });
+            } catch (zapErr) {
+                console.error("🚨 Lỗi đăng bài lên Zapier:", zapErr.message);
+            }
         }
 
         return updated;
@@ -209,6 +233,24 @@ class DonationServices {
             transactions
         };
     }
+    async completeCampaign(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error('ID chiến dịch không hợp lệ');
+    }
+
+    const campaign = await DonationCampaign.findById(id);
+    if (!campaign) {
+        throw new Error('Không tìm thấy chiến dịch');
+    }
+
+    if (campaign.status === 'completed') {
+        throw new Error('Chiến dịch đã kết thúc trước đó');
+    }
+
+    campaign.status = 'completed';
+    const updated = await campaign.save();
+    return updated;
+}
 }
 
 export default new DonationServices();

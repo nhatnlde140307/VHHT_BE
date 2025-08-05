@@ -610,9 +610,8 @@ class CampaignServices {
       const emailContent = {
         body: {
           name: user.fullName || user.email,
-          intro: `Bạn đã được duyệt tham gia chiến dịch "${
-            campaign.name
-          }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
+          intro: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+            }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
           outro:
             "Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.",
         },
@@ -631,9 +630,8 @@ class CampaignServices {
     // Tạo và lưu notification vào DB, rồi gửi socket
     const newNotification = new Notification({
       title: "Đăng ký chiến dịch được duyệt", // Title ngắn gọn
-      content: `Bạn đã được duyệt tham gia chiến dịch "${
-        campaign.name
-      }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
+      content: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+        }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
       link: `/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
       type: "campaign_approved",
       recipient: userId,
@@ -699,7 +697,7 @@ class CampaignServices {
     };
   }
 
-  async startCampaign(campaignId) {
+  async startCampaign(campaignId, postFb = true) {
     if (!mongoose.Types.ObjectId.isValid(campaignId)) {
       throw new Error("Invalid campaign ID");
     }
@@ -716,32 +714,33 @@ class CampaignServices {
     campaign.status = "in-progress";
     await campaign.save();
 
-    try {
-      const content = await aiServive.generateCampaignContent({
-        title: campaign.name,
-        description: campaign.description,
-        location: campaign.location?.address,
-        startDate: campaign.startDate.toLocaleDateString(),
-        endDate: campaign.endDate.toLocaleDateString(),
-        tone: "truyền cảm hứng",
-      });
-      console.log(content);
+    if (postFb) {
+      try {
+        const content = await aiServive.generateCampaignContent({
+          title: campaign.name,
+          description: campaign.description,
+          location: campaign.location?.address,
+          startDate: campaign.startDate.toLocaleDateString(),
+          endDate: campaign.endDate.toLocaleDateString(),
+          tone: "truyền cảm hứng"
+        });
+        console.log(content);
 
-      await axios.post(
-        "https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/",
-        {
+        await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
           title: campaign.name,
           content,
           startDate: campaign.startDate.toLocaleDateString(),
           image: campaign.image,
           link: `https://your-site.com/campaigns/${campaign._id}`,
-        }
-      );
-    } catch (zapErr) {
-      console.error("❌ Zapier or AI failed:", zapErr.message);
+        });
+      } catch (zapErr) {
+        console.error("❌ Zapier or AI failed:", zapErr.message);
+      }
     }
+
     return campaign;
   }
+
 
   generateCode() {
     return Math.random().toString(36).slice(2, 10).toUpperCase();

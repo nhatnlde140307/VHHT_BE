@@ -31,7 +31,7 @@ export const createDonationCampaign = async (req, res) => {
     const userId = req.decoded_authorization.user_id;
     const thumbnail = req.body?.thumbnail || null;
     const images = req.body?.images || [];
-    const campaign = await DonationServices.create(images,thumbnail,req.body, userId);
+    const campaign = await DonationServices.create(images, thumbnail, req.body, userId);
 
     res.status(201).json({
       message: 'Tạo chiến dịch quyên góp thành công',
@@ -83,7 +83,9 @@ export const updateDonationCampaign = async (req, res) => {
 export const approveDonationCampaign = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await DonationServices.approve(id);
+    const { postFb = "true" } = req.query; 
+
+    const result = await DonationServices.approve(id, postFb === "true");
 
     res.status(200).json({
       message: 'Chiến dịch đã được duyệt thành công',
@@ -95,6 +97,7 @@ export const approveDonationCampaign = async (req, res) => {
     });
   }
 };
+
 
 export const rejectDonationCampaign = async (req, res) => {
   try {
@@ -112,3 +115,18 @@ export const rejectDonationCampaign = async (req, res) => {
   }
 };
 
+export const completeDonationCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await DonationServices.completeCampaign(id);
+
+    res.status(200).json({
+      message: 'Chiến dịch đã được kết thúc thành công',
+      campaign: result
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message || 'Lỗi kết thúc chiến dịch'
+    });
+  }
+};
