@@ -12,7 +12,7 @@ import { initSocket } from "./socket/socket.js";
 import Category from "./models/category.model.js";
 import phaseModel from "./models/phase.model.js";
 import './cronJobs/phaseDayScheduler.js'; 
-
+import './cronJobs/weatherAlertCron.js';
 // routes
 import usersRouter from "./routes/users.routes.js";
 import commentRouter from "./routes/comment.routes.js";

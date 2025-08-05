@@ -64,8 +64,8 @@ export async function generateCertificateAndUpload({ name, campaign, date, code 
 
   const pages = pdfDoc.getPages()
   pages[0].drawImage(qrImage, {
-    x: 430,
-    y: 300,
+    x: 572.67,
+    y: 100.29,
     width: 100,
     height: 100
   })
@@ -101,10 +101,10 @@ export const getDownloadUrl = async (certificateId) => {
     throw new Error('Không tìm thấy chứng chỉ');
   }
 
-const downloadUrl = certificate.fileUrl.replace(
-  '/upload/',
-  `/upload/fl_attachment:certificate-${certificate.verifyCode}/`
-);  return downloadUrl;
+  const downloadUrl = certificate.fileUrl.replace(
+    '/upload/',
+    `/upload/fl_attachment:certificate-${certificate.verifyCode}/`
+  ); return downloadUrl;
 };
 
 export const deleteCertificateById = async (id) => {
@@ -113,8 +113,8 @@ export const deleteCertificateById = async (id) => {
 
   const matches = cert.fileUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.pdf/);
   if (matches && matches.length >= 2) {
-    const publicId = matches[1]; 
-    
+    const publicId = matches[1];
+
     await cloudinary.uploader.destroy(publicId, {
       resource_type: 'raw'
     });
