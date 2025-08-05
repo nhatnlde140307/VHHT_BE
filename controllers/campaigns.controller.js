@@ -191,7 +191,13 @@ export const rejectRequestHandler = async (req, res) => {
 export const startCampaignHandler = async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const updated = await campaignServices.startCampaign(campaignId);
+    const { postFb = "true" } = req.query; 
+
+    const updated = await campaignServices.startCampaign(
+      campaignId,
+      postFb === "true" 
+    );
+
     res.json({ message: CAMPAIGN_MESSAGE.START_CAMPAIGN_SUCCESS, campaign: updated });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -234,3 +240,4 @@ export const withdrawFromCampaignHandler = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
