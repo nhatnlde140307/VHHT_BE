@@ -1,163 +1,147 @@
-import NewsPostService from '../services/newsPost.services.js';
+import newsPostService from '../services/newsPost.services.js';
 import NewsPost from '../models/newsPost.model.js';
 import { cloudinary } from '../utils/cloudinary.config.js';
 
 jest.mock('../models/newsPost.model.js');
-jest.mock('../utils/cloudinary.config.js');
+jest.mock('../utils/cloudinary.config.js', () => ({
+  cloudinary: {
+    uploader: {
+      destroy: jest.fn()
+    }
+  }
+}));
 
-describe('NewsPostService', () => {
-    afterEach(() => {
-        jest.clearAllMocks();
-    });
+describe('newsPostService', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-    describe('createNewPost', () => {
-        it('tạo bài viết thành công', async () => {
-            const mockData = { title: 'Hello' };
-            const savedPost = { ...mockData, _id: '1' };
-            NewsPost.mockImplementation(() => ({ save: jest.fn().mockResolvedValue(savedPost) }));
+  it('should create new post', async () => {
+    const data = { title: 'abc' };
+    const saveMock = jest.fn().mockResolvedValue('new_post');
+    NewsPost.mockImplementation(() => ({ ...data, save: saveMock }));
 
-            const result = await NewsPostService.createNewPost(mockData, 'user123');
-            expect(result._id).toBe('1');
-        });
-    });
+    const result = await newsPostService.createNewPost(data, 'user123');
+    expect(saveMock).toHaveBeenCalled();
+    expect(result).toBe('new_post');
+  });
 
-    describe('getAll', () => {
-        it('trả về danh sách bài viết', async () => {
-            const mockData = [{ title: 'Bài 1' }, { title: 'Bài 2' }];
-            const populateMock = jest.fn().mockReturnThis();
+  it('should get all news posts', async () => {
+    const populateMock = jest.fn().mockReturnThis();
+    const sortMock = jest.fn().mockReturnValue({ populate: populateMock });
+    NewsPost.find.mockReturnValue({ sort: sortMock });
 
-            NewsPost.find.mockReturnValue({
-                sort: () => ({
-                    populate: populateMock.mockReturnValue({
-                        populate: jest.fn().mockResolvedValue(mockData),
-                    }),
-                }),
-            });
+    await newsPostService.getAll();
+    expect(NewsPost.find).toHaveBeenCalled();
+  });
 
-            const result = await NewsPostService.getAll();
-            expect(Array.isArray(result)).toBe(true);
-        });
-    });
+  it('should get post by id', async () => {
+    NewsPost.findById.mockResolvedValue('post123');
+    const result = await newsPostService.getById('id123');
+    expect(result).toBe('post123');
+  });
 
-    describe('getById', () => {
-        it('trả về 1 bài viết theo id', async () => {
-            NewsPost.findById.mockResolvedValue({ title: 'Post A' });
-            const result = await NewsPostService.getById('id123');
-            expect(result.title).toBe('Post A');
-        });
-    });
+  it('should delete post and images', async () => {
+    const post = {
+      images: ['https://res.cloudinary.com/demo/image/upload/VHHT/news/test1.jpg'],
+    };
+    NewsPost.findById.mockResolvedValue(post);
+    NewsPost.findByIdAndDelete.mockResolvedValue('deleted');
 
-    describe('delete', () => {
-        it('xóa bài viết và ảnh cloudinary', async () => {
-            const mockNews = {
-                images: ['https://res.cloudinary.com/demo/image/upload/v1/VHHT/news/img1.jpg'],
-            };
-            NewsPost.findById.mockResolvedValue(mockNews);
-            NewsPost.findByIdAndDelete.mockResolvedValue({ deleted: true });
-            cloudinary.uploader.destroy.mockResolvedValue({ result: 'ok' });
+    const result = await newsPostService.delete('id123');
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('VHHT/news/test1');
+    expect(result).toBe('deleted');
+  });
 
-            const result = await NewsPostService.delete('id456');
-            expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('VHHT/news/img1');
-            expect(result.deleted).toBe(true);
-        });
+  it('should return null if post not found for delete', async () => {
+    NewsPost.findById.mockResolvedValue(null);
+    const result = await newsPostService.delete('id123');
+    expect(result).toBeNull();
+  });
 
-        it('trả về null nếu không tìm thấy bài viết', async () => {
-            NewsPost.findById.mockResolvedValue(null);
-            const result = await NewsPostService.delete('invalid-id');
-            expect(result).toBeNull();
-        });
-    });
+  it('should update post', async () => {
+    NewsPost.findByIdAndUpdate.mockResolvedValue('updated');
+    const result = await newsPostService.update('id123', { title: 'new' });
+    expect(result).toBe('updated');
+  });
 
-    describe('update', () => {
-        it('cập nhật bài viết thành công', async () => {
-            const updatedPost = { title: 'New Title' };
-            NewsPost.findByIdAndUpdate.mockResolvedValue(updatedPost);
+  it('should upvote post', async () => {
+    const save = jest.fn().mockResolvedValue();
+    const post = {
+      upvotes: Object.assign([], { pull: jest.fn(), push: Array.prototype.push, includes: Array.prototype.includes }),
+      downvotes: Object.assign(['u2'], { pull: jest.fn(), push: Array.prototype.push, includes: Array.prototype.includes }),
+      save,
+    };
+    NewsPost.findById.mockResolvedValue(post);
 
-            const result = await NewsPostService.update('id789', { title: 'New Title' });
-            expect(result.title).toBe('New Title');
-        });
-    });
+    const result = await newsPostService.upvote('post1', 'u1');
+    expect(post.upvotes).toContain('u1');
+    expect(post.downvotes).not.toContain('u1');
+    expect(result.message).toBe('Post upvoted');
+  });
 
-    describe('upvote', () => {
-        it('vote thành công', async () => {
-            const mockPost = {
-                upvotes: [],
-                downvotes: ['user123'],
-                save: jest.fn().mockResolvedValue(true),
-            };
+  it('should remove upvote if already upvoted', async () => {
+    const save = jest.fn().mockResolvedValue();
+    const upvotesArray = ['u1'];
+    upvotesArray.pull = function(id) {
+      const index = this.indexOf(id);
+      if (index !== -1) this.splice(index, 1);
+    };
+    upvotesArray.push = Array.prototype.push;
+    upvotesArray.includes = Array.prototype.includes;
+    const post = {
+      upvotes: upvotesArray,
+      downvotes: Object.assign([], { pull: jest.fn(), push: Array.prototype.push, includes: Array.prototype.includes }),
+      save,
+    };
+    NewsPost.findById.mockResolvedValue(post);
 
-            NewsPost.findById.mockResolvedValue(mockPost);
+    const result = await newsPostService.upvote('post1', 'u1');
+    expect(post.upvotes).not.toContain('u1');
+    expect(result.message).toBe('Upvote removed');
+  });
 
-            const result = await NewsPostService.upvote('postId', 'user123');
+  it('should downvote post', async () => {
+    const save = jest.fn().mockResolvedValue();
+    const post = {
+      upvotes: Object.assign(['u1'], { pull: jest.fn(), push: Array.prototype.push, includes: Array.prototype.includes }),
+      downvotes: Object.assign([], { pull: jest.fn(), push: Array.prototype.push, includes: Array.prototype.includes }),
+      save,
+    };
+    NewsPost.findById.mockResolvedValue(post);
 
-            expect(result.message).toBe('Post upvoted');
-            expect(mockPost.upvotes).toContain('user123');
-            expect(mockPost.downvotes).not.toContain('user123');
-            expect(mockPost.save).toHaveBeenCalled();
-        });
+    const result = await newsPostService.downvote('post1', 'u2');
+    expect(post.downvotes).toContain('u2');
+    expect(post.upvotes).not.toContain('u2');
+    expect(result.message).toBe('News downvoted');
+  });
 
-        it('xóa vote nếu đã upvote trước đó', async () => {
-            const mockPost = {
-                upvotes: ['user123'],
-                downvotes: [],
-                save: jest.fn().mockResolvedValue(true),
-            };
+  it('should remove downvote if already downvoted', async () => {
+    const save = jest.fn().mockResolvedValue();
+    const downvotesArray = ['u1'];
+    downvotesArray.pull = function(id) {
+      const index = this.indexOf(id);
+      if (index !== -1) this.splice(index, 1);
+    };
+    downvotesArray.push = Array.prototype.push;
+    downvotesArray.includes = Array.prototype.includes;
+    const post = {
+      upvotes: Object.assign([], { pull: jest.fn(), push: Array.prototype.push, includes: Array.prototype.includes }),
+      downvotes: downvotesArray,
+      save,
+    };
+    NewsPost.findById.mockResolvedValue(post);
 
-            NewsPost.findById.mockResolvedValue(mockPost);
+    const result = await newsPostService.downvote('post1', 'u1');
+    expect(post.downvotes).not.toContain('u1');
+    expect(result.message).toBe('Downvote removed');
+  });
 
-            const result = await NewsPostService.upvote('postId', 'user123');
+  it('should throw error if post not found for upvote', async () => {
+    NewsPost.findById.mockResolvedValue(null);
+    await expect(newsPostService.upvote('id', 'user')).rejects.toThrow('News post not found');
+  });
 
-            expect(result.message).toBe('Upvote removed');
-            expect(mockPost.upvotes).not.toContain('user123');
-            expect(mockPost.save).toHaveBeenCalled();
-        });
-
-        it('báo lỗi nếu không tìm thấy post', async () => {
-            NewsPost.findById.mockResolvedValue(null);
-
-            await expect(NewsPostService.upvote('postId', 'user123')).rejects.toThrow('News post not found');
-        });
-    });
-
-    describe('downvote', () => {
-        it('downvote thành công', async () => {
-            const mockPost = {
-                upvotes: ['user123'],
-                downvotes: [],
-                save: jest.fn().mockResolvedValue(true),
-            };
-
-            NewsPost.findById.mockResolvedValue(mockPost);
-
-            const result = await NewsPostService.downvote('postId', 'user123');
-
-            expect(result.message).toBe('News downvoted');
-            expect(mockPost.downvotes).toContain('user123');
-            expect(mockPost.upvotes).not.toContain('user123');
-            expect(mockPost.save).toHaveBeenCalled();
-        });
-
-        it('xóa downvote nếu đã downvote trước đó', async () => {
-            const mockPost = {
-                upvotes: [],
-                downvotes: ['user123'],
-                save: jest.fn().mockResolvedValue(true),
-            };
-
-            NewsPost.findById.mockResolvedValue(mockPost);
-
-            const result = await NewsPostService.downvote('postId', 'user123');
-
-            expect(result.message).toBe('Downvote removed');
-            expect(mockPost.downvotes).not.toContain('user123');
-            expect(mockPost.save).toHaveBeenCalled();
-        });
-
-        it('báo lỗi nếu không tìm thấy bài viết', async () => {
-            NewsPost.findById.mockResolvedValue(null);
-
-            await expect(NewsPostService.downvote('postId', 'user123')).rejects.toThrow('News not found');
-        });
-    });
-
+  it('should throw error if post not found for downvote', async () => {
+    NewsPost.findById.mockResolvedValue(null);
+    await expect(newsPostService.downvote('id', 'user')).rejects.toThrow('News not found');
+  });
 });

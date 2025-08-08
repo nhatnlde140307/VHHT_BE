@@ -354,7 +354,7 @@ class UsersService {
         "driverLicenses"
       );
       return { getUser, user_id };
-    } catch (error) {}
+    } catch (error) { }
   }
 
   async getUserByEmail(payload) {
@@ -364,7 +364,7 @@ class UsersService {
     try {
       const getUser = await User.findOne({ email: email.toString() });
       return getUser;
-    } catch (error) {}
+    } catch (error) { }
   }
 
   async updateUser(user_id, payload, payloadFile) {
@@ -402,6 +402,10 @@ class UsersService {
   async changePassword(user_id, oldPassword, newPassword) {
     try {
       const user = await User.findById(user_id);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
       const isPasswordValid = await comparePassword(oldPassword, user.password);
       if (!isPasswordValid) {
         throw new Error("Invalid old password");
@@ -411,13 +415,17 @@ class UsersService {
       await user.save();
 
       const updatedUser = await User.findById(user_id);
-
-      return { message: "Password changed successfully", user: updatedUser };
+      return {
+        message: "Password changed successfully",
+        user: updatedUser
+      };
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      throw error;
     }
   }
 
+  
   async updateUser(user_id, payload, payloadFile) {
     try {
       if (payloadFile && payloadFile.path) {
