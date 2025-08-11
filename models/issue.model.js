@@ -22,7 +22,7 @@ const issueSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["task_issue", "campaign_withdrawal"],
+      enum: ["task_issue", "campaign_withdrawal", "cert_issue"],
       required: true,
     },
     relatedEntity: {

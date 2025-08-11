@@ -4,7 +4,7 @@ import {
   getCertificateByCampaign,
   getCertificateByUser,
   downloadCertificate,
-  deleteCertificate,
+  deleteCertificate, getCertificateDetail
 } from "../controllers/certificate.controller.js";
 import {
   accessTokenValidator,
@@ -36,5 +36,11 @@ certificateRoutes.delete(
   adminValidator,
   wrapRequestHandler(deleteCertificate)
 );
+
+certificateRoutes.get(
+  "/:certificateId",
+  organizationAndManagerValidator,         
+  wrapRequestHandler(getCertificateDetail)
+)
 
 export default certificateRoutes;
