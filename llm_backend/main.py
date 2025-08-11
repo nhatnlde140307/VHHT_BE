@@ -155,7 +155,8 @@ async def checkin_face(data: ImageData):
                     "method": "face"
                 }
 
-                res = await client.post("http://localhost:4000/checkin", json=payload)
+                backend_url = os.getenv("BACKEND_URL", "http://localhost:4000")
+                res = await client.post(f"{backend_url}/checkin", json=payload)
 
                 if res.status_code == 201:
                     return {

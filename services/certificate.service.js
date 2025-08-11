@@ -120,3 +120,11 @@ export const deleteCertificateById = async (id) => {
     });
   }
 };
+
+export async function getCertificateDetailById(id) {
+  if (!id) throw new Error('CERTIFICATE_ID_REQUIRED')
+  const cert = await Certificate.findById(id)
+    .populate('volunteerId', 'fullName email')   
+    .populate('campaignId', 'name')          
+  return cert
+}

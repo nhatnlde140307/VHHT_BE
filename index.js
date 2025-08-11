@@ -58,7 +58,7 @@ app.use(cookieParser());
 initSocket(server);
 
 app.get("/", async (req, res) => {
-  res.status(200).json("Hello to Rental Car API");
+  res.status(200).json("Hello to VHHT API");
 });
 
 app.use("/users", usersRouter);
