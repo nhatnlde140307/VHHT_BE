@@ -24,3 +24,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+llm_backend/**/*.pyc
+llm_backend/**/__pycache__/
+
+.vscode/
+venv/
+llm_backend/*.log

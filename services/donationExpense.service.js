@@ -37,7 +37,8 @@ export const approveExpenseService = async (id, status, note, approverId) => {
   expense.approvedBy = approverId;
   expense.note = note;
 
-  return await expense.save();
+  await expense.save();
+  return expense;
 };
 
 export const getExpensesByCampaignService = async (campaignId) => {
@@ -61,7 +62,8 @@ export const editExpenseService = async (id, userId, amount, description, images
   if (description) expense.description = description;
   if (images.length > 0) expense.evidences = images;
 
-  return await expense.save();
+  await expense.save();
+  return expense;
 };
 
 export const getExpenseSummaryService = async (campaignId) => {

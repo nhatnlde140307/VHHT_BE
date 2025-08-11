@@ -396,7 +396,10 @@ class CampaignServices {
           },
         },
       })
-      .populate("volunteers.user", "name email")
+      .populate({
+        path: "volunteers.user",
+        select: "name fullName avatar", // Add avatar to the selected fields
+      })
       .lean();
 
     if (!campaign) {
@@ -599,7 +602,7 @@ class CampaignServices {
     if (!user) throw new Error("Không tìm thấy người dùng");
 
     await User.findByIdAndUpdate(userId, {
-      $addToSet: { joinedCampaigns: campaignId }
+      $addToSet: { joinedCampaigns: campaignId },
     });
 
     // Gửi email (giữ nguyên code gốc, nhưng move user fetch lên trên để reuse)
@@ -694,7 +697,7 @@ class CampaignServices {
     };
   }
 
-  async startCampaign(campaignId) {
+  async startCampaign(campaignId, postFb = true) {
     if (!mongoose.Types.ObjectId.isValid(campaignId)) {
       throw new Error("Invalid campaign ID");
     }
@@ -711,32 +714,33 @@ class CampaignServices {
     campaign.status = "in-progress";
     await campaign.save();
 
-    try {
-      const content = await aiServive.generateCampaignContent({
-        title: campaign.name,
-        description: campaign.description,
-        location: campaign.location?.address,
-        startDate: campaign.startDate.toLocaleDateString(),
-        endDate: campaign.endDate.toLocaleDateString(),
-        tone: "truyền cảm hứng",
-      });
-      console.log(content);
+    if (postFb) {
+      try {
+        const content = await aiServive.generateCampaignContent({
+          title: campaign.name,
+          description: campaign.description,
+          location: campaign.location?.address,
+          startDate: campaign.startDate.toLocaleDateString(),
+          endDate: campaign.endDate.toLocaleDateString(),
+          tone: "truyền cảm hứng"
+        });
+        console.log(content);
 
-      await axios.post(
-        "https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/",
-        {
+        await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
           title: campaign.name,
           content,
           startDate: campaign.startDate.toLocaleDateString(),
           image: campaign.image,
           link: `https://your-site.com/campaigns/${campaign._id}`,
-        }
-      );
-    } catch (zapErr) {
-      console.error("❌ Zapier or AI failed:", zapErr.message);
+        });
+      } catch (zapErr) {
+        console.error("❌ Zapier or AI failed:", zapErr.message);
+      }
     }
+
     return campaign;
   }
+
 
   generateCode() {
     return Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -871,67 +875,39 @@ class CampaignServices {
     return issuedCertificates;
   }
 
-  async evaluateVolunteerInCampaign({ campaignId, userId, evaluation, feedback }) {
-    if (!mongoose.Types.ObjectId.isValid(campaignId) || !mongoose.Types.ObjectId.isValid(userId)) {
+  async evaluateVolunteerInCampaign({
+    campaignId,
+    userId,
+    evaluation,
+    feedback,
+  }) {
+    if (
+      !mongoose.Types.ObjectId.isValid(campaignId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
       throw new Error("Invalid campaignId or userId");
     }
 
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) throw new Error("Không tìm thấy chiến dịch");
 
-    const volunteer = campaign.volunteers.find(v => v.user.toString() === userId);
-    if (!volunteer) throw new Error("Tình nguyện viên không thuộc chiến dịch này");
+    const volunteer = campaign.volunteers.find(
+      (v) => v.user.toString() === userId
+    );
+    if (!volunteer)
+      throw new Error("Tình nguyện viên không thuộc chiến dịch này");
 
-    volunteer.evaluation = evaluation || 'average';
-    volunteer.feedback = feedback || '';
+    volunteer.evaluation = evaluation || "average";
+    volunteer.feedback = feedback || "";
 
     await campaign.save();
 
     return {
-      message: 'Đánh giá thành công',
+      message: "Đánh giá thành công",
       userId,
       evaluation: volunteer.evaluation,
-      feedback: volunteer.feedback
+      feedback: volunteer.feedback,
     };
-  }
-
-  async withdrawFromCampaign({ campaignId, userId }) {
-    if (!mongoose.Types.ObjectId.isValid(campaignId) || !mongoose.Types.ObjectId.isValid(userId)) {
-      throw new Error("Invalid campaignId or userId");
-    }
-
-    const campaign = await Campaign.findById(campaignId);
-    if (!campaign) throw new Error("Không tìm thấy chiến dịch");
-
-    // 1. Xoá user khỏi campaign.volunteers
-    campaign.volunteers = campaign.volunteers.filter(v => v.user.toString() !== userId);
-    await campaign.save();
-
-    // 2. Xoá campaignId khỏi user.joinedCampaigns
-    await User.findByIdAndUpdate(userId, {
-      $pull: { joinedCampaigns: campaignId }
-    });
-
-    // 3. Lấy các phase thuộc campaign
-    const phases = await Phase.find({ campaignId }).select("_id");
-    const phaseIds = phases.map(p => p._id);
-
-    // 4. Lấy các phaseDay thuộc phase
-    const phaseDays = await PhaseDay.find({ phaseId: { $in: phaseIds } }).select("_id");
-    const phaseDayIds = phaseDays.map(p => p._id);
-
-    // 5. Xoá user khỏi các task đang in_progress
-    await Task.updateMany(
-      {
-        phaseDayId: { $in: phaseDayIds },
-        status: 'in_progress'
-      },
-      {
-        $pull: { assignedUsers: { userId } }
-      }
-    );
-
-    return { message: "Rút lui khỏi chiến dịch thành công" };
   }
 }
 

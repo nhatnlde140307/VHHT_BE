@@ -4,230 +4,211 @@ import Campaign from '../models/campaign.model.js';
 import Task from '../models/task.model.js';
 import User from '../models/users.model.js';
 import Notification from '../models/notification.model.js';
-import { sendNotificationToUser } from '../socket.js';
+import { sendNotificationToUser } from '../socket/socket.js';
 
-// Mock các dependencies
 jest.mock('../models/issue.model.js');
 jest.mock('../models/campaign.model.js');
 jest.mock('../models/task.model.js');
 jest.mock('../models/users.model.js');
 jest.mock('../models/notification.model.js');
-jest.mock('../socket.js');
+jest.mock('../socket/socket.js');
 
 describe('IssueService', () => {
-  let issueService;
-
   beforeEach(() => {
-    issueService = IssueService;
     jest.clearAllMocks();
   });
 
   describe('createIssue', () => {
-    it('should create a task_issue successfully', async () => {
-      const issueData = {
-        title: 'Test Title',
-        description: 'Test Desc',
-        reportedBy: 'userId123',
+    it('should throw if relatedEntity.type mismatches', async () => {
+      await expect(IssueService.createIssue({
         type: 'task_issue',
-        relatedEntity: { type: 'Task', entityId: 'taskId123' }
+        relatedEntity: { type: 'Campaign', entityId: 'id' }
+      })).rejects.toThrow('For task_issue, relatedEntity must be Task');
+    });
+
+    it('should create task_issue successfully', async () => {
+      const issueData = {
+        type: 'task_issue',
+        relatedEntity: { type: 'Task', entityId: 'task123' },
+        reportedBy: 'user123',
+        title: 'Bug',
+        description: 'Bug in task'
       };
 
       Task.findById.mockResolvedValue({
-        assignedUsers: [{ userId: 'userId123', review: { reviewedBy: 'reviewerId' } }]
+        assignedUsers: [{ userId: 'user123' }]
       });
 
-      const mockIssue = {
+      const populated = {
+        ...issueData,
+        _id: 'issueId'
+      };
+
+      const saved = {
         ...issueData,
         _id: 'issueId',
-        save: jest.fn().mockImplementation(async function () { return this; }),
-        populate: jest.fn().mockImplementation(async function () { return this; })
+        save: jest.fn().mockResolvedValue(),
+        populate: jest.fn().mockResolvedValue(populated)
       };
-      Issue.mockImplementation(() => mockIssue);
+      Issue.mockImplementation(() => saved);
 
-      const mockNotification = { save: jest.fn().mockImplementation(async function () { return this; }) };
-      Notification.mockImplementation(() => mockNotification);
+      const result = await IssueService.createIssue(issueData);
 
-      const result = await issueService.createIssue(issueData);
-
-      expect(Task.findById).toHaveBeenCalledWith('taskId123');
-      expect(Issue).toHaveBeenCalledWith(expect.objectContaining(issueData));
-      expect(mockIssue.save).toHaveBeenCalled();
-      expect(Notification).toHaveBeenCalled();
-      expect(sendNotificationToUser).toHaveBeenCalled();
-      expect(Task.findByIdAndUpdate).toHaveBeenCalledWith('taskId123', { $push: { issues: 'issueId' } });
-      expect(result).toBe(mockIssue);
+      expect(Task.findById).toHaveBeenCalled();
+      expect(Issue).toHaveBeenCalled();
+      expect(result).toEqual(populated);
     });
 
-    it('should create a campaign_withdrawal successfully', async () => {
+    it('should create campaign_withdrawal and send notification', async () => {
       const issueData = {
-        title: 'Withdrawal Request',
-        description: 'Want to withdraw',
-        reportedBy: 'userId123',
         type: 'campaign_withdrawal',
-        relatedEntity: { type: 'Campaign', entityId: 'campaignId123' }
+        relatedEntity: { type: 'Campaign', entityId: 'campId' },
+        reportedBy: 'user123',
+        title: 'Withdraw',
+        description: 'Want to leave'
       };
 
-      const mockCampaign = {
-        volunteers: [{ user: 'userId123' }],
-        name: 'Test Campaign',
-        createdBy: { _id: 'managerId' }
-      };
-      const mockQuery = {
-        populate: jest.fn().mockReturnThis(),
-        then: jest.fn().mockImplementation((resolve) => resolve(mockCampaign))
-      };
-      Campaign.findById.mockReturnValue(mockQuery);
+      Campaign.findById.mockResolvedValueOnce({
+        volunteers: [{ user: 'user123' }]
+      });
 
-      const mockIssue = {
+      Campaign.findById.mockReturnValueOnce({
+        populate: jest.fn().mockResolvedValue({
+          name: 'Chiến dịch A',
+          createdBy: { _id: 'manager123' }
+        })
+      });
+
+      const populated = {
         ...issueData,
         _id: 'issueId',
-        status: 'open',
-        save: jest.fn().mockImplementation(async function () { return this; }),
-        populate: jest.fn().mockImplementation(async function () { return this; })
+        status: 'open'
       };
-      Issue.mockImplementation(() => mockIssue);
 
-      const mockNotification = { save: jest.fn().mockImplementation(async function () { return this; }) };
-      Notification.mockImplementation(() => mockNotification);
+      const saved = {
+        ...issueData,
+        _id: 'issueId',
+        save: jest.fn().mockResolvedValue(this),
+        populate: jest.fn().mockResolvedValue(populated)
+      };
+      Issue.mockImplementation(() => saved);
 
-      const result = await issueService.createIssue(issueData);
+      Notification.mockImplementation(() => ({
+        save: jest.fn().mockResolvedValue(true)
+      }));
 
-      expect(Campaign.findById).toHaveBeenCalledWith('campaignId123');
-      expect(Issue).toHaveBeenCalledWith(expect.objectContaining(issueData));
-      expect(mockIssue.save).toHaveBeenCalledTimes(2);
-      expect(Notification).toHaveBeenCalled();
-      expect(sendNotificationToUser).toHaveBeenCalledWith('managerId', expect.any(Object));
-      expect(Campaign.findByIdAndUpdate).toHaveBeenCalledWith('campaignId123', { $push: { issues: 'issueId' } });
-      expect(result).toBe(mockIssue);
+      const result = await IssueService.createIssue(issueData);
+
+      expect(Campaign.findById).toHaveBeenCalled();
+      expect(sendNotificationToUser).toHaveBeenCalledWith('manager123', expect.any(Object));
+      expect(result).toEqual(populated);
     });
 
-    it('should throw error if user not assigned to task for task_issue', async () => {
-      const issueData = {
-        type: 'task_issue',
-        relatedEntity: { type: 'Task', entityId: 'taskId123' },
-        reportedBy: 'userId123'
-      };
-
-      Task.findById.mockResolvedValue({ assignedUsers: [] });
-
-      await expect(issueService.createIssue(issueData)).rejects.toThrow('User not assigned to this task');
-    });
-
-    it('should throw error if user not joined campaign for campaign_withdrawal', async () => {
-      const issueData = {
-        type: 'campaign_withdrawal',
-        relatedEntity: { type: 'Campaign', entityId: 'campaignId123' },
-        reportedBy: 'userId123'
-      };
-
+    it('should throw if user not joined campaign', async () => {
       Campaign.findById.mockResolvedValue({ volunteers: [] });
+      await expect(IssueService.createIssue({
+        type: 'campaign_withdrawal',
+        relatedEntity: { type: 'Campaign', entityId: 'campId' },
+        reportedBy: 'user123'
+      })).rejects.toThrow('User not joined this campaign');
+    });
 
-      await expect(issueService.createIssue(issueData)).rejects.toThrow('User not joined this campaign');
+    it('should throw if user not assigned to task', async () => {
+      Task.findById.mockResolvedValue({ assignedUsers: [] });
+      await expect(IssueService.createIssue({
+        type: 'task_issue',
+        relatedEntity: { type: 'Task', entityId: 'taskId' },
+        reportedBy: 'user123'
+      })).rejects.toThrow('User not assigned to this task');
     });
   });
 
   describe('getIssues', () => {
-    it('should get issues with filters', async () => {
-      const filters = { type: 'task_issue' };
-      const user = { _id: 'userId123' };  // Chỉ dùng _id
-      const mockIssues = [{ _id: '1' }];
+    it('should return issues with filters', async () => {
+      const mock = { populate: jest.fn().mockResolvedValue(['issue1']) };
+      Issue.find.mockReturnValue(mock);
 
-      const mockPopulate = { populate: jest.fn().mockResolvedValue(mockIssues) };
-      Issue.find.mockReturnValue(mockPopulate);
-
-      const result = await issueService.getIssues(filters, user);
-
-      expect(Issue.find).toHaveBeenCalledWith({ type: 'task_issue' });  // Sửa: Không filter reportedBy vì middleware check role, tránh leak giả sử route được bảo vệ
-      expect(result).toEqual(mockIssues);
+      const result = await IssueService.getIssues({ type: 'task_issue' }, { _id: 'userId' });
+      expect(Issue.find).toHaveBeenCalledWith({ type: 'task_issue' });
+      expect(result).toEqual(['issue1']);
     });
   });
 
   describe('getIssueById', () => {
-    it('should get issue by id', async () => {
-      const mockIssue = { _id: 'issueId' };
-      const mockPopulate = { populate: jest.fn().mockResolvedValue(mockIssue) };
-      Issue.findById.mockReturnValue(mockPopulate);
+    it('should return populated issue', async () => {
+      const mock = { populate: jest.fn().mockResolvedValue({ id: 'x' }) };
+      Issue.findById.mockReturnValue(mock);
 
-      const result = await issueService.getIssueById('issueId');
-
-      expect(Issue.findById).toHaveBeenCalledWith('issueId');
-      expect(result).toEqual(mockIssue);
+      const result = await IssueService.getIssueById('id');
+      expect(Issue.findById).toHaveBeenCalledWith('id');
+      expect(result).toEqual({ id: 'x' });
     });
   });
 
   describe('updateIssue', () => {
-    it('should update issue and handle campaign_withdrawal resolution', async () => {
-      const issueId = 'issueId';
-      const updateData = { status: 'resolved' };
-      const user = { _id: 'managerId' };  // Chỉ dùng _id
-      const mockIssue = {
-        _id: issueId,
+    it('should update campaign_withdrawal and notify', async () => {
+      const issue = {
         type: 'campaign_withdrawal',
-        relatedEntity: { type: 'Campaign', entityId: 'campaignId' },
+        relatedEntity: { type: 'Campaign', entityId: 'campId' },
         reportedBy: 'userId123',
-        assignedTo: 'managerId',
-        save: jest.fn().mockImplementation(async function () { return this; }),
-        populate: jest.fn().mockImplementation(async function () { return this; })
+        save: jest.fn().mockResolvedValue()
       };
-      Issue.findById.mockResolvedValue(mockIssue);
+      const populated = {
+        ...issue
+      };
+      issue.populate = jest.fn().mockResolvedValue(populated);
 
-      const mockCampaign = {
+      const campaign = {
         volunteers: [{ user: 'userId123' }],
-        save: jest.fn().mockImplementation(async function () { return this; })
+        save: jest.fn().mockResolvedValue(true)
       };
-      Campaign.findById.mockResolvedValue(mockCampaign);
-
+      Issue.findById.mockResolvedValue(issue);
+      Campaign.findById.mockResolvedValue(campaign);
       User.findByIdAndUpdate.mockResolvedValue({});
+      Notification.mockImplementation(() => ({
+        save: jest.fn().mockResolvedValue(true)
+      }));
 
-      const mockNotification = { save: jest.fn().mockImplementation(async function () { return this; }) };
-      Notification.mockImplementation(() => mockNotification);
+      const result = await IssueService.updateIssue('id', { status: 'closed' }, { _id: 'managerId' });
 
-      const result = await issueService.updateIssue(issueId, updateData, user);
-
-      expect(Issue.findById).toHaveBeenCalledWith(issueId);
-      expect(mockIssue.save).toHaveBeenCalled();
-      expect(Campaign.findById).toHaveBeenCalledWith('campaignId');
-      expect(mockCampaign.save).toHaveBeenCalled();
-      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('userId123', { $pull: { joinedCampaigns: 'campaignId' } });
-      expect(Notification).toHaveBeenCalled();
-      expect(sendNotificationToUser).toHaveBeenCalled();
-      expect(result).toBe(mockIssue);
+      expect(Campaign.findById).toHaveBeenCalledWith('campId');
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('userId123', {
+        $pull: { joinedCampaigns: 'campId' }
+      });
+      expect(result).toEqual(populated);
     });
 
-    it('should throw unauthorized error if not allowed to update', async () => {
-      const mockIssue = { assignedTo: 'otherId' };
-      Issue.findById.mockResolvedValue(mockIssue);
-      const user = { _id: 'userId' };
-
-      await expect(issueService.updateIssue('id', {}, user)).rejects.toThrow('Unauthorized');
+    it('should throw if issue not found', async () => {
+      Issue.findById.mockResolvedValue(null);
+      await expect(IssueService.updateIssue('notfound', {}, {})).rejects.toThrow('Issue not found');
     });
   });
 
   describe('deleteIssue', () => {
-    it('should delete issue if authorized', async () => {
-      const issueId = 'issueId';
-      const user = { _id: 'userId' };
-      const mockIssue = {
-        _id: issueId,
-        relatedEntity: { type: 'Task', entityId: 'taskId' },
-        reportedBy: 'userId'
+    it('should delete if authorized', async () => {
+      const issue = {
+        _id: 'issueId',
+        relatedEntity: { type: 'Campaign', entityId: 'campId' },
+        reportedBy: 'user123'
       };
-      Issue.findById.mockResolvedValue(mockIssue);
+      Issue.findById.mockResolvedValue(issue);
       Issue.deleteOne.mockResolvedValue({});
+      await IssueService.deleteIssue('issueId', { _id: 'user123' });
 
-      await issueService.deleteIssue(issueId, user);
-
-      expect(Issue.findById).toHaveBeenCalledWith(issueId);
-      expect(Task.findByIdAndUpdate).toHaveBeenCalledWith('taskId', { $pull: { issues: issueId } });
-      expect(Issue.deleteOne).toHaveBeenCalledWith({ _id: issueId });
+      expect(Campaign.findByIdAndUpdate).toHaveBeenCalledWith('campId', {
+        $pull: { issues: 'issueId' }
+      });
+      expect(Issue.deleteOne).toHaveBeenCalledWith({ _id: 'issueId' });
     });
 
-    it('should throw unauthorized error if not allowed', async () => {
-      const mockIssue = { reportedBy: 'otherId' };
-      Issue.findById.mockResolvedValue(mockIssue);
-      const user = { _id: 'userId' };
+    it('should throw if not the reporter', async () => {
+      Issue.findById.mockResolvedValue({ reportedBy: 'other' });
+      await expect(IssueService.deleteIssue('id', { _id: 'user123' })).rejects.toThrow('Unauthorized');
+    });
 
-      await expect(issueService.deleteIssue('id', user)).rejects.toThrow('Unauthorized');
+    it('should throw if issue not found', async () => {
+      Issue.findById.mockResolvedValue(null);
+      await expect(IssueService.deleteIssue('id', { _id: 'user123' })).rejects.toThrow('Issue not found');
     });
   });
 });

@@ -8,9 +8,9 @@ import { transporter } from '../utils/nodemailerConfig.js';
 config()
 
 class AiService {
-    async generateCampaignContent({ title, description, location, startDate, endDate, tone }) {
+    async generateCampaignContent({ title, description, location, startDate, endDate, tone, type }) {
         const prompt = `
-Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho chiến dịch thiện nguyện sau:
+Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho chiến dịch tình nguyện sau:
 - Tên chiến dịch: ${title}
 - Mô tả chiến dịch: ${description}
 - Địa điểm: ${location}
@@ -27,7 +27,7 @@ Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham
                         { role: 'user', content: prompt }
                     ],
                     max_tokens: 300,
-                    temperature: 0.8
+                    temperature: 0.9
                 },
                 {
                     headers: {
@@ -43,6 +43,46 @@ Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham
             return AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
         }
     }
+
+    async generateFundraisingContent({ title, goal, description, location, startDate, endDate, tone }) {
+        const prompt = `
+Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho một chiến dịch kêu gọi quyên góp.
+- Tên chiến dịch: ${title}
+- Mục tiêu kêu gọi: ${goal}
+- Mô tả chiến dịch: ${description}
+Bài viết cần lay động lòng người, thể hiện sự cấp thiết và khơi gợi sự sẻ chia. Kết bài nên có lời kêu gọi mạnh mẽ để mọi người cùng chung tay đóng góp.
+`;
+
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-4o',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Bạn là một chuyên gia viết nội dung kêu gọi vốn và quyên góp đầy cảm xúc.',
+                        },
+                        { role: 'user', content: prompt },
+                    ],
+                    max_tokens: 300,
+                    temperature: 0.9, // tăng độ sáng tạo nhẹ
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.GPT_API_KEY}`,
+                        'Content-Type': 'application/json',
+                    }
+                }
+            );
+
+            return response.data.choices[0]?.message?.content?.trim() || AI_EXENTD_MESSAGE.ERROR_IN_CONTENT;
+        } catch (error) {
+            console.error('🔥 AI Error (fundraising):', error?.response?.data || error.message);
+            return AI_EXENTD_MESSAGE.ERROR_IN_CONTENT;
+        }
+    }
+
 
     async generateThankYouEmail({ recipientName,
         campaignName,
@@ -112,16 +152,16 @@ Email nên chân thành, khoảng 120–150 từ, dễ đọc, có thể kết t
     }
 
     async getPublicIdFromUrl(url) {
-    const getPublicIdFromUrl = (url) => {
-  const start = url.indexOf('/upload/') + 8
-  const end = url.lastIndexOf('.')
-  const publicId = url.substring(start, end)
-  const decoded = decodeURIComponent(publicId)
-  console.log('🎯 Extracted publicId =', decoded)
-  return decoded
-}
+        const getPublicIdFromUrl = (url) => {
+            const start = url.indexOf('/upload/') + 8
+            const end = url.lastIndexOf('.')
+            const publicId = url.substring(start, end)
+            const decoded = decodeURIComponent(publicId)
+            console.log('🎯 Extracted publicId =', decoded)
+            return decoded
+        }
 
-}
+    }
 }
 
 export default new AiService()

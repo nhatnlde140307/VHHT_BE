@@ -1,4 +1,4 @@
-import IssueService from '../services/issue.service.js';
+import IssueService from "../services/issue.service.js";
 
 export const createIssue = async (req, res) => {
   try {
@@ -26,7 +26,7 @@ export const getIssues = async (req, res) => {
 export const getIssueById = async (req, res) => {
   try {
     const issue = await IssueService.getIssueById(req.params.id);
-    if (!issue) return res.status(404).json({ message: 'Issue not found' });
+    if (!issue) return res.status(404).json({ message: "Issue not found" });
     res.json(issue);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -35,8 +35,10 @@ export const getIssueById = async (req, res) => {
 
 export const updateIssue = async (req, res) => {
   try {
-    const userId = req.decoded_authorization.user_id; // Sửa
-    const updatedIssue = await IssueService.updateIssue(req.params.id, req.body, { _id: userId });
+    const updatedIssue = await IssueService.updateIssue(
+      req.params.id,
+      req.body
+    );
     res.json(updatedIssue);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -11,7 +11,8 @@ import {
   assignTaskToUser,
   getTasksByCampaign,
   reviewPeerTask,
-  updateTaskStatus
+  updateTaskStatus,
+  getTasksByVolunteer,
 } from "../controllers/task.controller.js";
 import {
   organizationAndManagerValidator,
@@ -22,12 +23,28 @@ import uploadCloud from "../utils/cloudinary.config.js";
 
 const taskRouter = express.Router();
 
-taskRouter.get("/:campaignId/campaign", accessTokenValidator, wrapRequestHandler(getTasksByCampaign));
-taskRouter.get("/phaseDay/:phaseDayId", wrapRequestHandler(getTasksByPhaseDayId));
+taskRouter.get(
+  "/:campaignId/campaign",
+  accessTokenValidator,
+  wrapRequestHandler(getTasksByCampaign)
+);
+taskRouter.get(
+  "/phaseDay/:phaseDayId",
+  wrapRequestHandler(getTasksByPhaseDayId)
+);
 taskRouter.post("/create/:phaseDayId", wrapRequestHandler(createTask));
 taskRouter.patch("/update/:taskId", wrapRequestHandler(updateTask));
 taskRouter.delete("/delete/:taskId", wrapRequestHandler(deleteTask));
-taskRouter.post("/:taskId/assign", organizationAndManagerValidator, wrapRequestHandler(assignTaskToUser));
+taskRouter.post(
+  "/:taskId/assign",
+  organizationAndManagerValidator,
+  wrapRequestHandler(assignTaskToUser)
+);
+taskRouter.get(
+  "/:userId/volunteer",
+  accessTokenValidator,
+  wrapRequestHandler(getTasksByVolunteer)
+);
 
 taskRouter.post(
   "/:taskId/submit",
@@ -51,9 +68,6 @@ taskRouter.post(
 );
 
 // ✅ Cập nhật status riêng
-taskRouter.patch(
-  "/:taskId/status",
-  wrapRequestHandler(updateTaskStatus)
-);
+taskRouter.patch("/:taskId/status", wrapRequestHandler(updateTaskStatus));
 
 export default taskRouter;
