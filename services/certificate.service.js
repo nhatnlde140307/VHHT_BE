@@ -8,6 +8,8 @@ import { config } from 'dotenv'
 import { HTTP_STATUS } from '../constants/httpStatus.js'
 import { CAMPAIGN_MESSAGE } from '../constants/messages.js'
 import Certificate from '../models/certificate.model.js'
+import { nanoid } from 'nanoid'
+import Campaign from '../models/campaign.model.js'
 config()
 
 export async function uploadPDFtoCloudinary(buffer, fileName) {
@@ -26,6 +28,12 @@ export async function uploadPDFtoCloudinary(buffer, fileName) {
     )
     stream.end(buffer)
   })
+}
+
+function joinUrl(base, path) {
+  const b = String(base || '').replace(/\/+$/, '')
+  const p = String(path || '').replace(/^\/+/, '')
+  return `${b}/${p}`
 }
 
 export async function generateCertificateAndUpload({ name, campaign, date, code }) {
@@ -57,7 +65,8 @@ export async function generateCertificateAndUpload({ name, campaign, date, code 
   form.flatten()
 
   // ✅ QR code dẫn đến verify page
-  const verifyUrl = `https://your-domain.com/certificates/verify/${code}`
+  const base = process.env.FRONTEND_URL || 'http://localhost:3000'
+  const verifyUrl = joinUrl(base, `/certificates/verify/${code}`)
   const qrDataUrl = await QRCode.toDataURL(verifyUrl)
   const pngBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64')
   const qrImage = await pdfDoc.embedPng(pngBytes)
@@ -126,5 +135,55 @@ export async function getCertificateDetailById(id) {
   const cert = await Certificate.findById(id)
     .populate('volunteerId', 'fullName email')   
     .populate('campaignId', 'name')          
+  return cert
+}
+
+export async function getCertificateDetailByVerifyCode(verifyCode) {
+  if (!verifyCode) throw new Error('VERIFY_CODE_REQUIRED')
+  const cert = await Certificate.findOne({ verifyCode })
+    .populate('volunteerId', 'fullname email')   // tuỳ chỉnh
+    .populate('campaignId', 'name')          // tuỳ chỉnh
+  return cert
+}
+
+function toVNDate(d) {
+  const date = d ? new Date(d) : new Date()
+  const dd = String(date.getDate()).padStart(2, '0')
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const yyyy = date.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
+}
+
+export async function issueCertificateEarly({ campaignId, userId, issuedDate }) {
+  const campaign = await Campaign.findById(campaignId)
+  if (!campaign) throw new Error('CAMPAIGN_NOT_FOUND')
+  const user = await User.findById(userId)
+  if (!user) throw new Error('USER_NOT_FOUND')
+
+  const isApproved = (campaign.volunteers || []).some(
+    v => String(v.user) === String(userId) && v.status === 'approved'
+  )
+  if (!isApproved) throw new Error('VOLUNTEER_NOT_APPROVED')
+
+  const existed = await Certificate.findOne({ campaignId, volunteerId: userId })
+  if (existed) return existed
+
+  const code = nanoid(10)
+  const dateStr = toVNDate(issuedDate)
+  const fileUrl = await generateCertificateAndUpload({
+    name: user.fullName,
+    campaign: campaign.name,
+    date: dateStr,
+    code
+  })
+
+  const cert = await Certificate.create({
+    volunteerId: userId,
+    campaignId,
+    issuedDate: issuedDate ? new Date(issuedDate) : new Date(),
+    fileUrl,
+    verifyCode: code
+  })
+
   return cert
 }

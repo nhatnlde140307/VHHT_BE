@@ -288,7 +288,7 @@ export const assignTaskToUsers = async (taskId, userIds) => {
     const newNotification = new Notification({
       title: "Nhiệm vụ mới được giao",
       content: `Bạn đã được giao nhiệm vụ: ${task.title}`,
-      link: `/tasks/${task._id}`,
+      link: `/myTask`,
       type: "task_assigned",
       recipient: userId,
     });

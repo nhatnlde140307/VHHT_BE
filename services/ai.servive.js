@@ -10,7 +10,7 @@ config()
 class AiService {
     async generateCampaignContent({ title, description, location, startDate, endDate, tone, type }) {
         const prompt = `
-Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho chiến dịch tình nguyện sau:
+Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho chiến dịch tình nguyện ở Hà Tĩnh sau:
 - Tên chiến dịch: ${title}
 - Mô tả chiến dịch: ${description}
 - Địa điểm: ${location}
@@ -46,7 +46,7 @@ Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham
 
     async generateFundraisingContent({ title, goal, description, location, startDate, endDate, tone }) {
         const prompt = `
-Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho một chiến dịch kêu gọi quyên góp.
+Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho một chiến dịch ở Hà Tĩnh kêu gọi quyên góp.
 - Tên chiến dịch: ${title}
 - Mục tiêu kêu gọi: ${goal}
 - Mô tả chiến dịch: ${description}
