@@ -187,3 +187,28 @@ export async function issueCertificateEarly({ campaignId, userId, issuedDate }) 
 
   return cert
 }
+
+export async function getAllCertificates({ page = 1, limit = 20, campaignId, userId }) {
+  const filter = {}
+  if (campaignId) filter.campaignId = campaignId
+  if (userId) filter.volunteerId = userId
+
+  const [data, total] = await Promise.all([
+    Certificate.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .populate('volunteerId', 'fullName email')
+      .populate('campaignId', 'name'),
+    Certificate.countDocuments(filter)
+  ])
+
+  return {
+    data,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total
+    }
+  }
+}

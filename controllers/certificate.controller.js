@@ -1,6 +1,6 @@
 import { CERTIFICATE_MESSAGE, CAMPAIGN_MESSAGE } from '../constants/messages.js'
 import { HTTP_STATUS } from '../constants/httpStatus.js'
-import { getCampaignById,getCertificateDetailByVerifyCode, issueCertificateEarly, getUserById, getDownloadUrl, deleteCertificateById, getCertificateDetailById } from '../services/certificate.service.js'
+import { getCampaignById,getCertificateDetailByVerifyCode, getAllCertificates, issueCertificateEarly, getUserById, getDownloadUrl, deleteCertificateById, getCertificateDetailById } from '../services/certificate.service.js'
 import jwt from 'jsonwebtoken'
 import Certificate from '../models/certificate.model.js';
 
@@ -153,6 +153,22 @@ export const issueCertificateEarlyHandler = async (req, res) => {
   } catch (error) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       error: 'ISSUE_CERTIFICATE_EARLY_FAILED',
+      details: error.message
+    })
+  }
+}
+
+export const getAllCertificatesHandler = async (req, res) => {
+  try {
+    const { page, limit, campaignId, userId } = req.query
+    const result = await getAllCertificates({ page, limit, campaignId, userId })
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'GET_ALL_CERTIFICATES_SUCCESS',
+      result
+    })
+  } catch (error) {
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      error: 'GET_ALL_CERTIFICATES_FAILED',
       details: error.message
     })
   }

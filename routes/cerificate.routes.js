@@ -4,7 +4,7 @@ import {
   getCertificateByCampaign,
   getCertificateByUser,
   downloadCertificate,
-  deleteCertificate, getCertificateDetail, getCertificateDetailByVerifyCodeHandler, issueCertificateEarlyHandler
+  deleteCertificate, getCertificateDetail, getCertificateDetailByVerifyCodeHandler, issueCertificateEarlyHandler,getAllCertificatesHandler
 } from "../controllers/certificate.controller.js";
 import {
   accessTokenValidator,
@@ -52,6 +52,12 @@ certificateRoutes.post(
   '/issue-early',
   organizationAndManagerValidator,
   wrapRequestHandler(issueCertificateEarlyHandler)
+)
+
+certificateRoutes.get(
+  '/',
+  adminValidator,
+  wrapRequestHandler(getAllCertificatesHandler)
 )
 
 export default certificateRoutes;
