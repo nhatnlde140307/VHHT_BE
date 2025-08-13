@@ -42,7 +42,7 @@ cron.schedule('* * * * *', async () => {
                             const newNotification = new Notification({
                                 title: "Ngày mới đã mở checkin",
                                 content: `Ngày mới đã được bắt đầu ở Giai đoạn: ${phase.name}, chiến dịch: ${campaign.name}`,
-                                link: `/campaigns/${campaign._id}`, // Có thể thêm link nếu cần
+                                link: `/campaigns/${campaign._id}/tasks`, 
                                 type: "task_assigned",
                                 recipient: userId,
                             });
@@ -58,7 +58,7 @@ cron.schedule('* * * * *', async () => {
                         const creatorNotification = new Notification({
                             title: "PhaseDay của chiến dịch đã được bắt đầu",
                             content: `PhaseDay trong chiến dịch "${campaign.name}", Giai đoạn: ${phase.name} đã được bắt đầu.`,
-                            link: "", // Có thể thêm link nếu cần
+                            link: `/staff/campaigns/${campaign._id}`, // Có thể thêm link nếu cần
                             type: "task_assigned",
                             recipient: creatorId,
                         });

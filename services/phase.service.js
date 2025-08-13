@@ -228,7 +228,7 @@ export async function startPhaseService(phaseId) {
         const newNotification = new Notification({
             title: `Phase "${phase.name}" của chiến dịch "${campaign.name} đã bắt đầu"`,
             content: `Phase đã bắt đầu, hãy check task của bạn.`,
-            link: `/campaigns/${campaign._id}/phases/${phase._id}`,
+            link: `/campaigns/${campaign._id}/tasks`,
             type: 'system',
             recipient: recipientId,
             isRead: false,
