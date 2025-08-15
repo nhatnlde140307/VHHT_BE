@@ -155,7 +155,8 @@ async def checkin_face(data: ImageData):
                     "method": "face"
                 }
 
-                res = await client.post("http://localhost:4000/checkin", json=payload)
+                backend_url = os.getenv("BACKEND_URL", "http://localhost:4000")
+                res = await client.post(f"{backend_url}/checkin", json=payload)
 
                 if res.status_code == 201:
                     return {
@@ -215,4 +216,7 @@ async def chat(data: ChatData, request: Request):
 # === Khởi chạy ===
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))  # Đọc PORT từ env của Render
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+    
