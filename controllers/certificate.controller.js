@@ -38,54 +38,34 @@ export const getCertificateByCampaign = async (req, res, next) => {
 
 export const getCertificateByUser = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    // 1. Kiểm tra token header
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-        error: CERTIFICATE_MESSAGE.GET_BY_CAMPAIGN_FAIL,
-        details: "Access token is missing or malformed",
-      });
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    // 2. Xác minh token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET_ACCESS_TOKEN);
-    } catch (err) {
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-        error: CERTIFICATE_MESSAGE.GET_BY_CAMPAIGN_FAIL,
-        details: "Invalid or expired token",
-      });
-    }
-
-    // 3. Lấy userId từ payload
-    const userId = decoded.user_id;
-    console.log("UID:", userId);
+    const userId = req.decoded_authorization?.user_id
     if (!userId) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-        error: CERTIFICATE_MESSAGE.GET_BY_CAMPAIGN_FAIL,
-        details: "User_NOT_FOUND",
-      });
+        error: CERTIFICATE_MESSAGE.GET_BY_USER_FAIL,
+        details: 'User not found in token'
+      })
+    }
+    const result = await getUserById(userId)
+
+    if (!result || (Array.isArray(result) && result.length === 0)) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        error: CERTIFICATE_MESSAGE.NOT_FOUND,
+        details: 'No certificate for this user'
+      })
     }
 
-    // 4. Gọi service để lấy dữ liệu theo userId
-    const result = await getUserById(userId);
-
     return res.status(HTTP_STATUS.OK).json({
-      message: CERTIFICATE_MESSAGE.GET_BY_CAMPAIGN_SUCCESS,
-      result,
-    });
+
+      message: CERTIFICATE_MESSAGE.GET_BY_USER_SUCCESS,
+      result
+    })
   } catch (error) {
-    console.error("Error getting certificate:", error);
-    return res.status(HTTP_STATUS.NOT_FOUND).json({
-      error: CERTIFICATE_MESSAGE.GET_BY_CAMPAIGN_FAIL,
-      details: error.message,
-    });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      error: CERTIFICATE_MESSAGE.GET_BY_USER_FAIL,
+      details: error.message
+    })
   }
-};
+}
 
 export const downloadCertificate = async (req, res) => {
   try {
