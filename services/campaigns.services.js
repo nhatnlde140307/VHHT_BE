@@ -610,8 +610,9 @@ class CampaignServices {
       const emailContent = {
         body: {
           name: user.fullName || user.email,
-          intro: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
-            }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
+          intro: `Bạn đã được duyệt tham gia chiến dịch "${
+            campaign.name
+          }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
           outro:
             "Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.",
         },
@@ -630,8 +631,9 @@ class CampaignServices {
     // Tạo và lưu notification vào DB, rồi gửi socket
     const newNotification = new Notification({
       title: "Đăng ký chiến dịch được duyệt", // Title ngắn gọn
-      content: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
-        }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
+      content: `Bạn đã được duyệt tham gia chiến dịch "${
+        campaign.name
+      }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
       link: `/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
       type: "campaign_approved",
       recipient: userId,
@@ -722,17 +724,20 @@ class CampaignServices {
           location: campaign.location?.address,
           startDate: campaign.startDate.toLocaleDateString(),
           endDate: campaign.endDate.toLocaleDateString(),
-          tone: "truyền cảm hứng"
+          tone: "truyền cảm hứng",
         });
         console.log(content);
 
-        await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
-          title: campaign.name,
-          content,
-          startDate: campaign.startDate.toLocaleDateString(),
-          image: campaign.image,
-          link: `https://your-site.com/campaigns/${campaign._id}`,
-        });
+        await axios.post(
+          "https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/",
+          {
+            title: campaign.name,
+            content,
+            startDate: campaign.startDate.toLocaleDateString(),
+            image: campaign.image,
+            link: `https://your-site.com/campaigns/${campaign._id}`,
+          }
+        );
       } catch (zapErr) {
         console.error("❌ Zapier or AI failed:", zapErr.message);
       }
@@ -740,7 +745,6 @@ class CampaignServices {
 
     return campaign;
   }
-
 
   generateCode() {
     return Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -751,93 +755,117 @@ class CampaignServices {
     generateCertificate = true,
     mail = false
   ) {
-    const campaign = await Campaign.findById(campaignId).populate("volunteers.user")
-    if (!campaign) throw new Error("Không tìm thấy chiến dịch")
-    if (campaign.status === "completed") throw new Error("Chiến dịch đã kết thúc trước đó")
+    const campaign = await Campaign.findById(campaignId).populate(
+      "volunteers.user"
+    );
+    if (!campaign) throw new Error("Không tìm thấy chiến dịch");
+    if (campaign.status === "completed")
+      throw new Error("Chiến dịch đã kết thúc trước đó");
 
-    const issuedCertificates = []
-    campaign.status = "completed"
+    const issuedCertificates = [];
+    campaign.status = "completed";
 
-    // Load sẵn các cert đã có để bỏ qua
-    const existingCerts = await Certificate.find({ campaignId: campaign._id })
-    const certByUser = new Map(existingCerts.map(c => [String(c.volunteerId), c]))
+    // Load all existing certificates for this campaign (both early issued and previously generated)
+    const existingCerts = await Certificate.find({ campaignId: campaign._id });
+    const certByUser = new Map(
+      existingCerts.map((c) => [String(c.volunteerId), c])
+    );
 
     for (const v of campaign.volunteers) {
-      if (v.status !== "approved" || !v.user) continue
+      if (v.status !== "approved" || !v.user) continue;
 
-      const isPoor = v.evaluation === "poor"
-      let fileUrl = null
+      const isPoor = v.evaluation === "poor";
+      let fileUrl = null;
 
-      if (generateCertificate && !isPoor) {
-        const key = String(v.user._id)
-        const existed = certByUser.get(key)
+      // Skip if volunteer already has a certificate (either early issued or previously generated)
+      const userHasCertificate = certByUser.has(String(v.user._id));
 
-        if (!existed) {
-          const verifyCode = this.generateCode()
-          fileUrl = await generateCertificateAndUpload({
-            name: v.user.fullName,
-            campaign: campaign.name,
-            date: new Date().toLocaleDateString("vi-VN"),
-            code: verifyCode
-          })
-          const cert = await Certificate.create({
-            volunteerId: v.user._id,
-            campaignId: campaign._id,
-            verifyCode,
-            fileUrl
-          })
-          issuedCertificates.push(cert)
-          certByUser.set(key, cert)
-        } else {
-          fileUrl = existed.fileUrl
-        }
+      if (generateCertificate && !isPoor && !userHasCertificate) {
+        const verifyCode = this.generateCode();
+        fileUrl = await generateCertificateAndUpload({
+          name: v.user.fullName,
+          campaign: campaign.name,
+          date: new Date().toLocaleDateString("vi-VN"),
+          code: verifyCode,
+        });
+
+        const cert = await Certificate.create({
+          volunteerId: v.user._id,
+          campaignId: campaign._id,
+          verifyCode,
+          fileUrl,
+          issuedDate: new Date(), // Add issued date
+        });
+
+        issuedCertificates.push(cert);
+        certByUser.set(String(v.user._id), cert);
+      } else if (userHasCertificate) {
+        // Volunteer already has a certificate, use the existing one
+        fileUrl = certByUser.get(String(v.user._id)).fileUrl;
       }
 
       if (mail) {
-        const recipientName = v.user.fullName || v.user.email
-        let introText = ""
-        let subject = ""
-        let action = null
+        const recipientName = v.user.fullName || v.user.email;
+        let introText = "";
+        let subject = "";
+        let action = null;
 
         if (isPoor) {
-          subject = `Kết quả tham gia chiến dịch "${campaign.name}"`
-          introText = `Chào ${recipientName}, ...`
+          subject = `Kết quả tham gia chiến dịch "${campaign.name}"`;
+          introText = `Chào ${recipientName}, ...`;
         } else {
-          subject = `Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}"`
+          subject = `Cảm ơn bạn đã tham gia chiến dịch "${campaign.name}"`;
           introText =
-            v.evaluation === "excellent" ? `Bạn được đánh giá xuất sắc...` :
-              v.evaluation === "good" ? `Bạn đã hoàn thành rất tốt...` :
-                v.evaluation === "average" ? `Bạn đã hoàn thành ở mức khá...` :
-                  `Cảm ơn bạn đã tham gia...`
+            v.evaluation === "excellent"
+              ? `Bạn được đánh giá xuất sắc...`
+              : v.evaluation === "good"
+              ? `Bạn đã hoàn thành rất tốt...`
+              : v.evaluation === "average"
+              ? `Bạn đã hoàn thành ở mức khá...`
+              : `Cảm ơn bạn đã tham gia...`;
 
           if (fileUrl) {
             action = {
-              instructions: "Bạn có thể tải chứng chỉ tham gia tại liên kết sau:",
-              button: { color: "#22BC66", text: "Xem chứng chỉ", link: fileUrl }
-            }
+              instructions:
+                "Bạn có thể tải chứng chỉ tham gia tại liên kết sau:",
+              button: {
+                color: "#22BC66",
+                text: "Xem chứng chỉ",
+                link: fileUrl,
+              },
+            };
           }
         }
 
         const mailBody = MailGenerator.generate({
-          body: { name: recipientName, intro: introText, ...(action && { action }), outro: "Trân trọng cảm ơn bạn!" }
-        })
+          body: {
+            name: recipientName,
+            intro: introText,
+            ...(action && { action }),
+            outro: "Trân trọng cảm ơn bạn!",
+          },
+        });
 
         try {
-          await transporter.sendMail({ from: process.env.EMAIL, to: v.user.email, subject, html: mailBody })
+          await transporter.sendMail({
+            from: process.env.EMAIL,
+            to: v.user.email,
+            subject,
+            html: mailBody,
+          });
         } catch (e) {
-          console.error(`Gửi email thất bại cho ${v.user.email}:`, e.message)
+          console.error(`Gửi email thất bại cho ${v.user.email}:`, e.message);
         }
       }
     }
 
     if (generateCertificate) {
-      campaign.certificatesIssued = certByUser.size > 0
+      campaign.certificatesIssued = certByUser.size > 0;
     }
 
-    await campaign.save()
-    return issuedCertificates
+    await campaign.save();
+    return issuedCertificates;
   }
-
 
   async evaluateVolunteerInCampaign({
     campaignId,
