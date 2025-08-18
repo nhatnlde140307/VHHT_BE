@@ -4,7 +4,11 @@ import {
   getCertificateByCampaign,
   getCertificateByUser,
   downloadCertificate,
-  deleteCertificate, getCertificateDetail, getCertificateDetailByVerifyCodeHandler, issueCertificateEarlyHandler
+  deleteCertificate,
+  getCertificateDetail,
+  getCertificateDetailByVerifyCodeHandler,
+  issueCertificateEarlyHandler,
+  getAllCertificatesHandler,
 } from "../controllers/certificate.controller.js";
 import {
   accessTokenValidator,
@@ -39,19 +43,25 @@ certificateRoutes.delete(
 
 certificateRoutes.get(
   "/:certificateId",
-  organizationAndManagerValidator,         
+  organizationAndManagerValidator,
   wrapRequestHandler(getCertificateDetail)
-)
+);
 
 certificateRoutes.get(
   "/verify/:verifyCode",
   wrapRequestHandler(getCertificateDetailByVerifyCodeHandler)
-)
+);
 
 certificateRoutes.post(
-  '/issue-early',
+  "/issue-early",
   organizationAndManagerValidator,
   wrapRequestHandler(issueCertificateEarlyHandler)
-)
+);
+
+certificateRoutes.get(
+  "/",
+  accessTokenValidator,
+  wrapRequestHandler(getAllCertificatesHandler)
+);
 
 export default certificateRoutes;

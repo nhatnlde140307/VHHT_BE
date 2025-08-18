@@ -1,105 +1,123 @@
-import { PDFDocument } from 'pdf-lib'
-import fontkit from '@pdf-lib/fontkit'
-import fs from 'fs'
-import path from 'path'
-import QRCode from 'qrcode'
-import { cloudinary } from '../utils/cloudinary.config.js'
-import { config } from 'dotenv'
-import { HTTP_STATUS } from '../constants/httpStatus.js'
-import { CAMPAIGN_MESSAGE } from '../constants/messages.js'
-import Certificate from '../models/certificate.model.js'
-import { nanoid } from 'nanoid'
-import Campaign from '../models/campaign.model.js'
-config()
+import { PDFDocument } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import fs from "fs";
+import path from "path";
+import QRCode from "qrcode";
+import { cloudinary } from "../utils/cloudinary.config.js";
+import { config } from "dotenv";
+import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { CAMPAIGN_MESSAGE } from "../constants/messages.js";
+import Certificate from "../models/certificate.model.js";
+import { nanoid } from "nanoid";
+import Campaign from "../models/campaign.model.js";
+import User from "../models/users.model.js";
+config();
 
 export async function uploadPDFtoCloudinary(buffer, fileName) {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        resource_type: 'raw',
+        resource_type: "raw",
         public_id: `certificates/${fileName}`,
-        folder: 'certificates',
-        format: 'pdf'
+        folder: "certificates",
+        format: "pdf",
       },
       (error, result) => {
-        if (error) return reject(error)
-        resolve(result.secure_url)
+        if (error) return reject(error);
+        resolve(result.secure_url);
       }
-    )
-    stream.end(buffer)
-  })
+    );
+    stream.end(buffer);
+  });
 }
 
 function joinUrl(base, path) {
-  const b = String(base || '').replace(/\/+$/, '')
-  const p = String(path || '').replace(/^\/+/, '')
-  return `${b}/${p}`
+  const b = String(base || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return `${b}/${p}`;
 }
 
-export async function generateCertificateAndUpload({ name, campaign, date, code }) {
-  const templateUrl = process.env.CERTIFICATE_TEMPLATE
-  const existingPdfBytes = await fetch(templateUrl).then(res => res.arrayBuffer())
-  const pdfDoc = await PDFDocument.load(existingPdfBytes)
+export async function generateCertificateAndUpload({
+  name,
+  campaign,
+  date,
+  code,
+  templateUrl = process.env.CERTIFICATE_TEMPLATE,
+}){
+  
+  if (!templateUrl) {
+  throw new Error("Template URL is required.");
+}
+
+  const existingPdfBytes = await fetch(templateUrl).then((res) =>
+    res.arrayBuffer()
+  );
+  const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
   // ✅ Nhúng font hỗ trợ Unicode
-  pdfDoc.registerFontkit(fontkit)
-  const fontPath = path.resolve('assets/fonts/Roboto-Regular.ttf')
-  const fontBytes = fs.readFileSync(fontPath)
-  const customFont = await pdfDoc.embedFont(fontBytes)
+  pdfDoc.registerFontkit(fontkit);
+  const fontPath = path.resolve("assets/fonts/Roboto-Regular.ttf");
+  const fontBytes = fs.readFileSync(fontPath);
+  const customFont = await pdfDoc.embedFont(fontBytes);
 
   // ✅ Gán dữ liệu vào form và cập nhật font hiển thị
-  const form = pdfDoc.getForm()
+  const form = pdfDoc.getForm();
 
-  const nameField = form.getTextField('User')
-  const campaignField = form.getTextField('Campaign')
-  const dateField = form.getTextField('Date')
+  const nameField = form.getTextField("User");
+  const campaignField = form.getTextField("Campaign");
+  const dateField = form.getTextField("Date");
 
-  nameField.setText(name)
-  campaignField.setText(campaign)
-  dateField.setText(date)
+  nameField.setText(name);
+  campaignField.setText(campaign);
+  dateField.setText(date);
 
   // ⚠️ Cập nhật appearance để hiển thị Unicode
-  form.updateFieldAppearances(customFont)
+  form.updateFieldAppearances(customFont);
 
   // ✅ Không sửa được form nếu không flatten
-  form.flatten()
+  form.flatten();
 
   // ✅ QR code dẫn đến verify page
-  const base = process.env.FRONTEND_URL || 'http://localhost:3000'
-  const verifyUrl = joinUrl(base, `/certificates/verify/${code}`)
-  const qrDataUrl = await QRCode.toDataURL(verifyUrl)
-  const pngBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64')
-  const qrImage = await pdfDoc.embedPng(pngBytes)
+  const base = process.env.FRONTEND_URL || "http://localhost:3000";
+  const verifyUrl = joinUrl(base, `/certificates/verify/${code}`);
+  const qrDataUrl = await QRCode.toDataURL(verifyUrl);
+  const pngBytes = Buffer.from(qrDataUrl.split(",")[1], "base64");
+  const qrImage = await pdfDoc.embedPng(pngBytes);
 
-  const pages = pdfDoc.getPages()
+  const pages = pdfDoc.getPages();
   pages[0].drawImage(qrImage, {
     x: 572.67,
     y: 100.29,
     width: 100,
-    height: 100
-  })
+    height: 100,
+  });
 
-  const buffer = await pdfDoc.save()
-  const fileName = `${name.replace(/\s+/g, '_')}_${code}`
-  return await uploadPDFtoCloudinary(buffer, fileName)
+  const buffer = await pdfDoc.save();
+  const fileName = `${name.replace(/\s+/g, "_")}_${code}`;
+  return await uploadPDFtoCloudinary(buffer, fileName);
 }
 
 export async function getCampaignById(campaignId) {
   if (!campaignId) {
-    throw new Error('CAMPAIGN_NOT_FOUND');
+    throw new Error("CAMPAIGN_NOT_FOUND");
   }
 
-  const listCerts = await Certificate.find({ campaignId }).populate('campaignId', 'name');
+  const listCerts = await Certificate.find({ campaignId }).populate(
+    "campaignId",
+    "name"
+  );
   return listCerts;
 }
 
-
 export async function getUserById(userId) {
   if (!userId) {
-    throw new Error('User_NOT_FOUND');
+    throw new Error("User_NOT_FOUND");
   }
 
-  const listCerts = await Certificate.find({ volunteerId: userId }).populate('campaignId', 'name');
+  const listCerts = await Certificate.find({ volunteerId: userId }).populate(
+    "campaignId",
+    "name"
+  );
   return listCerts;
 }
 
@@ -107,83 +125,127 @@ export const getDownloadUrl = async (certificateId) => {
   const certificate = await Certificate.findById(certificateId);
 
   if (!certificate || !certificate.fileUrl) {
-    throw new Error('Không tìm thấy chứng chỉ');
+    throw new Error("Không tìm thấy chứng chỉ");
   }
 
   const downloadUrl = certificate.fileUrl.replace(
-    '/upload/',
+    "/upload/",
     `/upload/fl_attachment:certificate-${certificate.verifyCode}/`
-  ); return downloadUrl;
+  );
+  return downloadUrl;
 };
 
 export const deleteCertificateById = async (id) => {
   const cert = await Certificate.findByIdAndDelete(id);
-  if (!cert) throw new Error('Không tìm thấy chứng chỉ');
+  if (!cert) throw new Error("Không tìm thấy chứng chỉ");
 
   const matches = cert.fileUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.pdf/);
   if (matches && matches.length >= 2) {
     const publicId = matches[1];
 
     await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'raw'
+      resource_type: "raw",
     });
   }
 };
 
 export async function getCertificateDetailById(id) {
-  if (!id) throw new Error('CERTIFICATE_ID_REQUIRED')
+  if (!id) throw new Error("CERTIFICATE_ID_REQUIRED");
   const cert = await Certificate.findById(id)
-    .populate('volunteerId', 'fullName email')   
-    .populate('campaignId', 'name')          
-  return cert
+    .populate("volunteerId", "fullName email")
+    .populate("campaignId", "name");
+  return cert;
 }
 
 export async function getCertificateDetailByVerifyCode(verifyCode) {
-  if (!verifyCode) throw new Error('VERIFY_CODE_REQUIRED')
+  if (!verifyCode) throw new Error("VERIFY_CODE_REQUIRED");
   const cert = await Certificate.findOne({ verifyCode })
-    .populate('volunteerId', 'fullname email')   // tuỳ chỉnh
-    .populate('campaignId', 'name')          // tuỳ chỉnh
-  return cert
+    .populate("volunteerId", "fullname email") // tuỳ chỉnh
+    .populate("campaignId", "name"); // tuỳ chỉnh
+  return cert;
 }
 
 function toVNDate(d) {
-  const date = d ? new Date(d) : new Date()
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = date.getFullYear()
-  return `${dd}/${mm}/${yyyy}`
+  const date = d ? new Date(d) : new Date();
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
-export async function issueCertificateEarly({ campaignId, userId, issuedDate }) {
-  const campaign = await Campaign.findById(campaignId)
-  if (!campaign) throw new Error('CAMPAIGN_NOT_FOUND')
-  const user = await User.findById(userId)
-  if (!user) throw new Error('USER_NOT_FOUND')
+export async function issueCertificateEarly({
+  campaignId,
+  userId,
+  issuedDate,
+}) {
+  // Validate input
+  if (!campaignId || !userId) {
+    throw new Error("Missing required parameters: campaignId and userId");
+  }
+
+  const campaign = await Campaign.findById(campaignId);
+  if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
+
+  const user = await User.findById(userId);
+  if (!user) throw new Error("USER_NOT_FOUND");
 
   const isApproved = (campaign.volunteers || []).some(
-    v => String(v.user) === String(userId) && v.status === 'approved'
-  )
-  if (!isApproved) throw new Error('VOLUNTEER_NOT_APPROVED')
+    (v) => String(v.user) === String(userId) && v.status === "approved"
+  );
+  if (!isApproved) throw new Error("VOLUNTEER_NOT_APPROVED");
 
-  const existed = await Certificate.findOne({ campaignId, volunteerId: userId })
-  if (existed) return existed
+  const existed = await Certificate.findOne({
+    campaignId,
+    volunteerId: userId,
+  });
+  if (existed) return existed;
 
-  const code = nanoid(10)
-  const dateStr = toVNDate(issuedDate)
+  const code = nanoid(10);
+  const dateStr = toVNDate(issuedDate || new Date());
   const fileUrl = await generateCertificateAndUpload({
     name: user.fullName,
     campaign: campaign.name,
     date: dateStr,
-    code
-  })
+    code,
+  });
 
   const cert = await Certificate.create({
     volunteerId: userId,
     campaignId,
     issuedDate: issuedDate ? new Date(issuedDate) : new Date(),
     fileUrl,
-    verifyCode: code
-  })
+    verifyCode: code,
+  });
 
-  return cert
+  return cert;
+}
+
+export async function getAllCertificates({
+  page = 1,
+  limit = 20,
+  campaignId,
+  userId,
+}) {
+  const filter = {};
+  if (campaignId) filter.campaignId = campaignId;
+  if (userId) filter.volunteerId = userId;
+
+  const [data, total] = await Promise.all([
+    Certificate.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .populate("volunteerId", "fullName email")
+      .populate("campaignId", "name"),
+    Certificate.countDocuments(filter),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+    },
+  };
 }

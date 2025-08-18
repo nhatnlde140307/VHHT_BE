@@ -1,18 +1,16 @@
+import express from "express";
+import http from "http";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import bodyParser from "body-parser";
+import { config } from "dotenv";
 import databaseServices from "./services/database.services.js";
 import { defaultErrorHandler } from "./middlewares/errors.middlewares.js";
-import pkg from "lodash";
-import bodyParser from "body-parser";
-import express from "express";
-import mongoose from "mongoose";
-import cookieParser from "cookie-parser";
-import cors from "cors";
-import { config } from "dotenv";
-import http from "http";
-import { initSocket } from "./socket/socket.js";
-import Category from "./models/category.model.js";
-import phaseModel from "./models/phase.model.js";
-import './cronJobs/phaseDayScheduler.js'; 
-import './cronJobs/weatherAlertCron.js';
+
+// cron
+import "./cronJobs/phaseDayScheduler.js";
+import "./cronJobs/weatherAlertCron.js";
+
 // routes
 import usersRouter from "./routes/users.routes.js";
 import commentRouter from "./routes/comment.routes.js";
@@ -32,54 +30,80 @@ import rlPointrouter from "./routes/reliefPoint.routes.js";
 import issueRouter from "./routes/issue.routes.js";
 import forumRoutes from "./routes/forum.routes.js";
 import taskRouter from "./routes/task.routes.js";
-import Erouter from "./routes/donationExpense.routes.js"
+import Erouter from "./routes/donationExpense.routes.js";
+
+import { initSocket } from "./socket/socket.js";
+
 config();
 
 const app = express();
-const server = http.createServer(app); // ✅ tạo server để dùng socket
-const port = 4000;
+const server = http.createServer(app);
+const port = process.env.PORT || 4000;
 
-databaseServices.connect();
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ extended: false }));
+app.enable("trust proxy");
 
+const allowlist = [process.env.FRONTEND_URL, process.env.FRONTEND_URL_STAGING].filter(Boolean);
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);
+      if (allowlist.includes(origin)) return cb(null, true);
+      return cb(new Error("Not allowed by CORS"));
+    },
     credentials: true,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
+app.use((_, res, next) => {
+  res.setHeader("Vary", "Origin");
+  next();
+});
+app.options(/.*/, cors());
 
-app.use(express.json());
+databaseServices.connect();
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-// 🔌 socket setup
 initSocket(server);
 
-app.get("/", async (req, res) => {
+app.get("/", (req, res) => {
   res.status(200).json("Hello to VHHT API");
 });
 
-app.use("/users", usersRouter);
-app.use("/payments", paymentsRoutes);
-app.use("/campaigns", campaignRoutes);
-app.use("/checkin", checkinRoutes);
-app.use("/ai", aiRouter);
-app.use("/cloud", uploadRouter);
-app.use("/news", newsPostRoutes);
-app.use("/certificate", certificateRoutes);
-app.use("/donate", donateRouter);
-app.use("/comment", commentRouter);
-app.use("/notification", notiRouter);
-app.use("/phase", phaseRouter);
-app.use("/category", categoryRoutes);
-app.use("/storm", stormRouter);
-app.use("/relief-point", rlPointrouter);
-app.use("/issue", issueRouter);
-app.use("/forum", forumRoutes);
-app.use("/task", taskRouter);
-app.use("/expense", Erouter);
+function safeMount(path, router) {
+  try {
+    console.log("[MOUNT] ->", path);
+    app.use(path, router);
+  } catch (e) {
+    console.error("[MOUNT ERROR] at:", path);
+    throw e;
+  }
+}
+
+safeMount("/users", usersRouter);
+safeMount("/payments", paymentsRoutes);
+safeMount("/campaigns", campaignRoutes);
+safeMount("/checkin", checkinRoutes);
+safeMount("/ai", aiRouter);
+safeMount("/cloud", uploadRouter);
+safeMount("/news", newsPostRoutes);
+safeMount("/certificate", certificateRoutes);
+safeMount("/donate", donateRouter);
+safeMount("/comment", commentRouter);
+safeMount("/notification", notiRouter);
+safeMount("/phase", phaseRouter);
+safeMount("/category", categoryRoutes);
+safeMount("/storm", stormRouter);
+safeMount("/relief-point", rlPointrouter);
+safeMount("/issue", issueRouter);
+safeMount("/forum", forumRoutes);
+safeMount("/task", taskRouter);
+safeMount("/expense", Erouter);
 
 app.use(defaultErrorHandler);
 
