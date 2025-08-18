@@ -67,7 +67,8 @@ app.use((_, res, next) => {
   res.setHeader("Vary", "Origin");
   next();
 });
-app.options("*", cors({ origin: corsOrigin, credentials: true }));
+
+app.options(/.*/, cors({ origin: corsOrigin, credentials: true }))
 
 databaseServices.connect();
 
