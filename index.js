@@ -2,7 +2,6 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import bodyParser from "body-parser";
 import { config } from "dotenv";
 import databaseServices from "./services/database.services.js";
 import { defaultErrorHandler } from "./middlewares/errors.middlewares.js";
@@ -42,31 +41,38 @@ const port = process.env.PORT || 4000;
 
 app.enable("trust proxy");
 
+const allowRegexes = [
+  /^https?:\/\/localhost:\d+$/,
+  /^https:\/\/.+\.vercel\.app$/
+];
+
 const allowlist = [process.env.FRONTEND_URL, process.env.FRONTEND_URL_STAGING].filter(Boolean);
+
+function corsOrigin(origin, cb) {
+  if (!origin) return cb(null, true);
+  const inList = allowlist.includes(origin);
+  const matchRegex = allowRegexes.some((re) => re.test(origin));
+  return inList || matchRegex ? cb(null, true) : cb(new Error("Not allowed by CORS"));
+}
+
 app.use(
   cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true);
-      if (allowlist.includes(origin)) return cb(null, true);
-      return cb(new Error("Not allowed by CORS"));
-    },
+    origin: corsOrigin,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
   })
 );
 app.use((_, res, next) => {
   res.setHeader("Vary", "Origin");
   next();
 });
-app.options(/.*/, cors());
+app.options("*", cors({ origin: corsOrigin, credentials: true }));
 
 databaseServices.connect();
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 initSocket(server);
