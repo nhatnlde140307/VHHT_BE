@@ -30,7 +30,7 @@ import issueRouter from "./routes/issue.routes.js";
 import forumRoutes from "./routes/forum.routes.js";
 import taskRouter from "./routes/task.routes.js";
 import Erouter from "./routes/donationExpense.routes.js";
-
+import tempCertrouter from "./routes/templateCert.routes.js";
 import { initSocket } from "./socket/socket.js";
 
 config();
@@ -111,6 +111,7 @@ safeMount("/issue", issueRouter);
 safeMount("/forum", forumRoutes);
 safeMount("/task", taskRouter);
 safeMount("/expense", Erouter);
+safeMount("/tempCert", tempCertrouter)
 
 app.use(defaultErrorHandler);
 
