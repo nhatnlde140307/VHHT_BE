@@ -42,8 +42,13 @@ export async function generateCertificateAndUpload({
   campaign,
   date,
   code,
-}) {
-  const templateUrl = process.env.CERTIFICATE_TEMPLATE;
+  templateUrl = process.env.CERTIFICATE_TEMPLATE,
+}){
+  
+  if (!templateUrl) {
+  throw new Error("Template URL is required.");
+}
+
   const existingPdfBytes = await fetch(templateUrl).then((res) =>
     res.arrayBuffer()
   );

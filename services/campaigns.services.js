@@ -610,9 +610,8 @@ class CampaignServices {
       const emailContent = {
         body: {
           name: user.fullName || user.email,
-          intro: `Bạn đã được duyệt tham gia chiến dịch "${
-            campaign.name
-          }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
+          intro: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+            }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
           outro:
             "Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.",
         },
@@ -631,9 +630,8 @@ class CampaignServices {
     // Tạo và lưu notification vào DB, rồi gửi socket
     const newNotification = new Notification({
       title: "Đăng ký chiến dịch được duyệt", // Title ngắn gọn
-      content: `Bạn đã được duyệt tham gia chiến dịch "${
-        campaign.name
-      }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
+      content: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+        }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
       link: `/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
       type: "campaign_approved",
       recipient: userId,
@@ -753,8 +751,12 @@ class CampaignServices {
   async endCampaignAndIssueCertificates(
     campaignId,
     generateCertificate = true,
-    mail = false
+    mail = false,
+    templateUrl = process.env.CERTIFICATE_TEMPLATE
   ) {
+    if (!templateUrl) {
+      throw new Error("Template URL is required.");
+    }
     const campaign = await Campaign.findById(campaignId).populate(
       "volunteers.user"
     );
@@ -787,6 +789,7 @@ class CampaignServices {
           campaign: campaign.name,
           date: new Date().toLocaleDateString("vi-VN"),
           code: verifyCode,
+          templateUrl: templateUrl
         });
 
         const cert = await Certificate.create({
@@ -819,10 +822,10 @@ class CampaignServices {
             v.evaluation === "excellent"
               ? `Bạn được đánh giá xuất sắc...`
               : v.evaluation === "good"
-              ? `Bạn đã hoàn thành rất tốt...`
-              : v.evaluation === "average"
-              ? `Bạn đã hoàn thành ở mức khá...`
-              : `Cảm ơn bạn đã tham gia...`;
+                ? `Bạn đã hoàn thành rất tốt...`
+                : v.evaluation === "average"
+                  ? `Bạn đã hoàn thành ở mức khá...`
+                  : `Cảm ơn bạn đã tham gia...`;
 
           if (fileUrl) {
             action = {
