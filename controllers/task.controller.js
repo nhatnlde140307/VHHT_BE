@@ -203,3 +203,14 @@ export const getTasksByVolunteer = async (req, res, next) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export async function getCampaignByTaskIdCtrl(req, res) {
+  try {
+    const { taskId } = req.params;
+    const campaignId = await taskService.getCampaignIdByTaskId(taskId);
+    if (!campaignId) return res.status(404).json({ message: "Not found" });
+    return res.json({ campaignId });
+  } catch (e) {
+    return res.status(500).json({ message: e.message });
+  }
+}

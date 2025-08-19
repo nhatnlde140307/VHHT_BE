@@ -13,6 +13,7 @@ import {
   reviewPeerTask,
   updateTaskStatus,
   getTasksByVolunteer,
+  getCampaignByTaskIdCtrl
 } from "../controllers/task.controller.js";
 import {
   organizationAndManagerValidator,
@@ -22,6 +23,8 @@ import { wrapRequestHandler } from "../utils/handlers.js";
 import uploadCloud from "../utils/cloudinary.config.js";
 
 const taskRouter = express.Router();
+
+taskRouter.get("/:taskId/campaign", wrapRequestHandler(getCampaignByTaskIdCtrl));
 
 taskRouter.get(
   "/:campaignId/campaign",
@@ -69,5 +72,6 @@ taskRouter.post(
 
 // ✅ Cập nhật status riêng
 taskRouter.patch("/:taskId/status", wrapRequestHandler(updateTaskStatus));
+
 
 export default taskRouter;

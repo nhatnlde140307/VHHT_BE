@@ -463,3 +463,16 @@ export const getTasksByCampaignService = async (campaignId, userId) => {
     phases: finalPhases,
   };
 };
+
+export async function getCampaignIdByTaskId(taskId) {
+  const task = await Task.findById(taskId).select("phaseDayId");
+  if (!task) throw new Error("Task không tồn tại");
+
+  const phaseDay = await PhaseDay.findById(task.phaseDayId).select("phaseId");
+  if (!phaseDay) throw new Error("PhaseDay không tồn tại");
+
+  const phase = await Phase.findById(phaseDay.phaseId).select("campaignId");
+  if (!phase) throw new Error("Phase không tồn tại");
+
+  return phase.campaignId;
+}
