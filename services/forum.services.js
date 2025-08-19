@@ -63,6 +63,32 @@ class ForumService {
         },
       },
 
+      // Count the child comments
+      {
+        $lookup: {
+          from: "comments",
+          let: { parentId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$refId", "$$parentId"] } } },
+            { $count: "count" },
+          ],
+          as: "childCount",
+        },
+      },
+
+      // Count the child comments
+      {
+        $addFields: {
+          commentsCount: {
+            $cond: [
+              { $gt: [{ $size: "$childCount" }, 0] },
+              { $arrayElemAt: ["$childCount.count", 0] },
+              0,
+            ],
+          },
+        },
+      },
+
       // Unwind to convert createdBy from array to single object
       { $unwind: "$createdBy" },
 
@@ -142,6 +168,32 @@ class ForumService {
           localField: "createdBy",
           foreignField: "_id",
           as: "createdBy",
+        },
+      },
+
+      // Count the child comments
+      {
+        $lookup: {
+          from: "comments",
+          let: { parentId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$refId", "$$parentId"] } } },
+            { $count: "count" },
+          ],
+          as: "childCount",
+        },
+      },
+
+      // Count the child comments
+      {
+        $addFields: {
+          commentsCount: {
+            $cond: [
+              { $gt: [{ $size: "$childCount" }, 0] },
+              { $arrayElemAt: ["$childCount.count", 0] },
+              0,
+            ],
+          },
         },
       },
 
