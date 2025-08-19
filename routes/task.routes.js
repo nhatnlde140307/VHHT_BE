@@ -24,7 +24,7 @@ import uploadCloud from "../utils/cloudinary.config.js";
 
 const taskRouter = express.Router();
 
-taskRouter.get("/:taskId/campaign", wrapRequestHandler(getCampaignByTaskIdCtrl));
+taskRouter.get("/:taskId/campaignTasks", wrapRequestHandler(getCampaignByTaskIdCtrl));
 
 taskRouter.get(
   "/:campaignId/campaign",
