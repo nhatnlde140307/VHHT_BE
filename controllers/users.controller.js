@@ -73,51 +73,51 @@ export const getUserById = async (req, res, next) => {
 }
 
 export const disableUser = async (req, res, next) => {
-   try {
-      const { user_id, role } = req.decoded_authorization
-      const { id } = req.params
+  try {
+    const { user_id, role } = req.decoded_authorization
+    const { id } = req.params
 
-      // Chỉ admin hoặc manager được phép (tuỳ bạn mở rộng)
-      if (role !== 'admin') {
-        return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' })
-      }
-
-      const result = await usersService.disableUser(id)
-      return res.status(200).json({ message: 'Tài khoản đã bị vô hiệu hóa', data: result })
-    } catch (err) {
-      return res.status(400).json({ message: err.message })
+    // Chỉ admin hoặc manager được phép (tuỳ bạn mở rộng)
+    if (role !== 'admin') {
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' })
     }
+
+    const result = await usersService.disableUser(id)
+    return res.status(200).json({ message: 'Tài khoản đã bị vô hiệu hóa', data: result })
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
+  }
 }
 
 export const createOrganization = async (req, res, next) => {
-    try {
-      const { user_id, role } = req.decoded_authorization
-      if (role !== 'manager') {
-        return res.status(403).json({ message: 'Chỉ manager được phép tạo tổ chức' })
-      }
-
-      const newOrg = await usersService.createOrganization({ managerId: user_id, ...req.body })
-      return res.status(201).json({ message: 'Tạo tài khoản tổ chức thành công', data: newOrg })
-    } catch (err) {
-      return res.status(400).json({ message: err.message })
+  try {
+    const { user_id, role } = req.decoded_authorization
+    if (role !== 'manager') {
+      return res.status(403).json({ message: 'Chỉ manager được phép tạo tổ chức' })
     }
+
+    const newOrg = await usersService.createOrganization({ managerId: user_id, ...req.body })
+    return res.status(201).json({ message: 'Tạo tài khoản tổ chức thành công', data: newOrg })
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
+  }
 }
 
 export const enableUser = async (req, res, next) => {
-    try {
-      const { user_id, role } = req.decoded_authorization
-      const { id } = req.params
+  try {
+    const { user_id, role } = req.decoded_authorization
+    const { id } = req.params
 
-      if (role !== 'admin') {
-        return res.status(403).json({ message: 'Chỉ admin mới được phép kích hoạt tài khoản' })
-      }
-
-      const result = await usersService.enableUser(id)
-      return res.status(200).json({ message: 'Tài khoản đã được kích hoạt', data: result })
-    } catch (err) {
-      return res.status(400).json({ message: err.message })
+    if (role !== 'admin') {
+      return res.status(403).json({ message: 'Chỉ admin mới được phép kích hoạt tài khoản' })
     }
+
+    const result = await usersService.enableUser(id)
+    return res.status(200).json({ message: 'Tài khoản đã được kích hoạt', data: result })
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
   }
+}
 
 export const googleController = async (req, res, next) => {
   console.log(req.body)
@@ -150,7 +150,7 @@ export const importStaffUsers = async (req, res) => {
     }
     const role = req.query.role?.toLowerCase()
 
-    const result = await usersService.importUsersFromExcelBuffer(req.file.buffer,role)
+    const result = await usersService.importUsersFromExcelBuffer(req.file.buffer, role)
 
     return res.status(201).json({
       message: 'Import user role staff hoàn tất!',
@@ -239,3 +239,25 @@ export const updateSkillsOfUsers = async (req, res, next) => {
     return res.status(400).json({ message: err.message })
   }
 }
+
+export const resetPasswordHandler = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ message: 'Token and new password are required.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.EMAIL_SECRET);
+    const result = await usersService.finalizePasswordReset(decoded.userId, newPassword);
+
+    return res.status(200).json({
+      message: 'Password reset successful.',
+      info: result
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message || 'Invalid or expired token.'
+    });
+  }
+};

@@ -557,6 +557,16 @@ class UsersService {
     await user.save();
     return user;
   }
+
+  async finalizePasswordReset(userId, newPassword) {
+    const user = await User.findById(userId);
+    if (!user) throw new Error("User not found");
+
+    user.password = hashPassword(newPassword).toString();
+    await user.save();
+
+    return "Password updated successfully";
+  }
 }
 
 export default new UsersService();

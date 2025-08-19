@@ -7,7 +7,6 @@ const CommuneSchema = new mongoose.Schema({
   },
   district: {
     type: String,
-    required: true
   },
   province: {
     type: String,
