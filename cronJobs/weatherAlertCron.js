@@ -28,8 +28,8 @@ function formatTime(isoString) {
 }
 
 // ⏰ Cron mỗi 2 tiếng (vào phút 0)
-// cron.schedule('*/30 * * * * *', async () => {
-cron.schedule('0 */30 * * * *', async () => {
+cron.schedule('*/2 * * * *', async () => {
+// cron.schedule('0 */30 * * * *', async () => {
   try {
     const url = `https://api.weatherapi.com/v1/forecast.json?q=${encodeURIComponent(HATINH_QUERY)}&days=1&alerts=yes&key=${API_KEY}`;
     const res = await fetch(url);
