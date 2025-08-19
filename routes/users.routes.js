@@ -27,6 +27,7 @@ import {
   getSkillByUserId,
   addSkillsToUsers,
   updateSkillsOfUsers,
+  resetPasswordHandler
 } from "../controllers/users.controller.js";
 
 import uploadCloud from "../utils/cloudinary.config.js";
@@ -73,6 +74,9 @@ usersRoutes.put(
   accessTokenValidator,
   wrapRequestHandler(changePasswordController)
 );
+
+//forgot password
+usersRoutes.post("/reset-password", wrapRequestHandler(resetPasswordHandler));
 
 //getuser by id
 usersRoutes.get(
