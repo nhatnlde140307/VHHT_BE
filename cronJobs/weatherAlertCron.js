@@ -41,7 +41,6 @@ cron.schedule('*/30 * * * * *', async () => {
 
     // Nếu không có cảnh báo nhưng bật DEV_FORCE_STORM → chèn alert giả
     if (alerts.length === 0 && DEV_FORCE_STORM) {
-      console.log('🧪 DEV_FORCE_STORM: Chèn alert giả lập.');
       alerts = [
         {
           headline: "[GIẢ LẬP] Bão LINFA",
@@ -54,12 +53,6 @@ cron.schedule('*/30 * * * * *', async () => {
           isMock: true,
         },
       ];
-    }
-
-    // Nếu không có cảnh báo thật và không phải chế độ dev → không emit
-    if (alerts.length === 0) {
-      console.log('✅ Không có cảnh báo thời tiết nào, không emit.');
-      return;
     }
 
     const weatherSummary = {
@@ -91,7 +84,6 @@ cron.schedule('*/30 * * * * *', async () => {
     };
 
     getIO().emit('weather:update', weatherSummary);
-    console.log('📡 Đã emit weather:update tới FE:', JSON.stringify(weatherSummary, null, 2));
 
   } catch (err) {
     console.error('❌ Lỗi khi emit weather cron:', err);
