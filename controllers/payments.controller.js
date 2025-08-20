@@ -172,7 +172,27 @@ export const callbackZalopay = async (req, res) => {
         });
         io.to(goalReachedNoti.recipient.toString()).emit("notification", goalReachedNoti);
       }
+      const prevAmount = refreshedCampaign.currentAmount - amount;
+      if (
+        prevAmount < refreshedCampaign.goalAmount * 0.5 &&
+        refreshedCampaign.currentAmount >= refreshedCampaign.goalAmount * 0.5
+      ) {
+        const content = await aiServive.generatePushRaisingDonation({
+          title: refreshedCampaign.title,
+          goal: refreshedCampaign.goalAmount ,
+          currentAmount: refreshedCampaign.currentAmount,
+          description: refreshedCampaign.description,
+          tone: "gây xúc động",
+          type: "kêu gọi ủng hộ thiện nguyện"
+        });
 
+        await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
+          title: refreshedCampaign.title,
+          content,
+          image: refreshedCampaign.thumbnail,
+          link: `https://your-site.com/donation-campaigns/${updated._id}`,
+        });
+      }
       result = {
         return_code: 1,
         return_message: "Thành công",

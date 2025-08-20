@@ -83,7 +83,6 @@ Bài viết cần lay động lòng người, thể hiện sự cấp thiết v�
         }
     }
 
-
     async generateThankYouEmail({ recipientName,
         campaignName,
         contributionDetails,
@@ -150,6 +149,43 @@ Email nên chân thành, khoảng 120–150 từ, dễ đọc, có thể kết t
 
         await transporter.sendMail(mailOptions);
     }
+
+    async generatePushRaisingDonation({ title, goal, description, currentAmount, startDate, endDate, tone }) {
+        const prompt = `
+Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, để kêu gọi mọi người ủng hộ thêm cho chiến dịch khuyên góp để hoàn thành mục tiêu:
+- Tên chiến dịch: ${title}
+- Mục tiêu kêu gọi: ${goal},
+-Hiện đã ủng hộ được:${currentAmount}
+- Mô tả chiến dịch: ${description}
+Bài viết cần lay động lòng người, thể hiện sự cấp thiết và khơi gợi sự sẻ chia. Kết bài nên có lời kêu gọi mạnh mẽ để mọi người cùng chung tay đóng góp.
+`
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-4o',
+                    messages: [
+                        { role: 'system', content: 'Bạn là một chuyên gia viết nội dung thiện nguyện chuyên nghiệp.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    max_tokens: 300,
+                    temperature: 0.9
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.GPT_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            )
+
+            return response.data.choices[0]?.message?.content?.trim() || AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
+        } catch (error) {
+            console.error('AI Error:', error?.response?.data || error.message)
+            return AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
+        }
+    }
+
 
     async getPublicIdFromUrl(url) {
         const getPublicIdFromUrl = (url) => {
