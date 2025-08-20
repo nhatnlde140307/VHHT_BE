@@ -11,6 +11,8 @@ import Certificate from "../models/certificate.model.js";
 import { nanoid } from "nanoid";
 import Campaign from "../models/campaign.model.js";
 import User from "../models/users.model.js";
+import { config } from "dotenv";
+
 config();
 
 export async function uploadPDFtoCloudinary(buffer, fileName) {
@@ -79,7 +81,7 @@ export async function generateCertificateAndUpload({
 
   // ✅ QR code dẫn đến verify page
   const base = process.env.FRONTEND_URL || "http://localhost:3000";
-  const verifyUrl = joinUrl(base, `/certificates/verify/${code}`);
+  const verifyUrl = joinUrl(base, `certificates/verify/${code}`);
   const qrDataUrl = await QRCode.toDataURL(verifyUrl);
   const pngBytes = Buffer.from(qrDataUrl.split(",")[1], "base64");
   const qrImage = await pdfDoc.embedPng(pngBytes);
