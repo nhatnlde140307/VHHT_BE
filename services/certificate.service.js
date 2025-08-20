@@ -1,17 +1,16 @@
+import { config } from "dotenv";
 import { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
 import { cloudinary } from "../utils/cloudinary.config.js";
-import { config } from "dotenv";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { CAMPAIGN_MESSAGE } from "../constants/messages.js";
 import Certificate from "../models/certificate.model.js";
 import { nanoid } from "nanoid";
 import Campaign from "../models/campaign.model.js";
 import User from "../models/users.model.js";
-import { config } from "dotenv";
 
 config();
 
