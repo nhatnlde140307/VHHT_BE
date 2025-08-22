@@ -106,7 +106,7 @@ safeMount("/notification", notiRouter);
 safeMount("/phase", phaseRouter);
 safeMount("/category", categoryRoutes);
 safeMount("/storm", stormRouter);
-safeMount("/relief-point", rlPointrouter);
+safeMount("/relief-point", rlPointrouter); 
 safeMount("/issue", issueRouter);
 safeMount("/forum", forumRoutes);
 safeMount("/task", taskRouter);

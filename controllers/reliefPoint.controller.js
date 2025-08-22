@@ -47,3 +47,28 @@ export const deleteReliefPoint = async (req, res) => {
     res.status(404).json({ message: err.message });
   }
 };
+
+export const addRescueEntry = async (req, res) => {
+  try {
+    const { rescueNote, rescuedAt, markAsRescued, note } = req.body;
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    const urls = files.map(f => f.path); // URL cloudinary
+
+    const payload = {
+      rescueNote,
+      rescuedAt,
+      markAsRescued: typeof markAsRescued === 'string'
+        ? ['true', '1', 'yes'].includes(markAsRescued.toLowerCase())
+        : !!markAsRescued,
+      proofs: [
+        { images: urls, note }
+      ]
+    };
+
+    const updated = await ReliefPointService.addRescueEntry(req.params.id, payload);
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
