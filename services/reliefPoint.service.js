@@ -57,3 +57,28 @@ export const deleteReliefPointById = async (id) => {
   }
   return point;
 };
+
+export const addRescueEntry = async (id, payload) => {
+  const {
+    rescuedAt,
+    rescueNote,
+    proofs = [],   
+    markAsRescued
+  } = payload;
+
+  const rescueEntry = {
+    rescuedAt: rescuedAt ? new Date(rescuedAt) : new Date(),
+    rescueNote: rescueNote || '',
+    rescueProofs: (proofs || []).map(p => ({
+      images: Array.isArray(p.images) ? p.images : [],
+      note: p.note || undefined
+    }))
+  };
+
+  const update = { $push: { rescueList: rescueEntry } };
+  if (typeof markAsRescued === 'boolean') {
+    update.$set = { rescueStatus: markAsRescued };
+  }
+
+  return await ReliefPoint.findByIdAndUpdate(id, update, { new: true });
+};

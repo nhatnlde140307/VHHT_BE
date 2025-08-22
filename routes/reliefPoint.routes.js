@@ -1,5 +1,6 @@
 import express from 'express';
 import * as ReliefPointController from '../controllers/reliefPoint.controller.js';
+import uploadCloud from '../utils/cloudinary.config.js';
 
 const rlPointrouter = express.Router();
 
@@ -23,5 +24,11 @@ rlPointrouter.patch('/:id/respond', ReliefPointController.respondToReliefPoint);
 
 // Thêm route xóa điểm
 rlPointrouter.delete('/:id', ReliefPointController.deleteReliefPoint);
+
+rlPointrouter.post(
+  '/:id/rescues',
+  uploadCloud.array('images', 10),
+  ReliefPointController.addRescueEntry
+);
 
 export default rlPointrouter;
