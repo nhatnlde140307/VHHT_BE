@@ -723,6 +723,7 @@ class CampaignServices {
           startDate: campaign.startDate.toLocaleDateString(),
           endDate: campaign.endDate.toLocaleDateString(),
           tone: "truyền cảm hứng",
+          id: campaignId
         });
         console.log(content);
 

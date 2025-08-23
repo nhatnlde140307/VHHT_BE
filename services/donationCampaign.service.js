@@ -122,7 +122,8 @@ class DonationServices {
                     goal: updated.goalAmount ? `${updated.goalAmount} VNĐ` : 'Không rõ',
                     description: updated.description,
                     tone: "gây xúc động",
-                    type:"kêu gọi ủng hộ thiện nguyện"
+                    type:"kêu gọi ủng hộ thiện nguyện",
+                    id:id
                 });
 
                 await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
@@ -248,6 +249,7 @@ class DonationServices {
     }
 
     campaign.status = 'completed';
+    campaign.totalEnd = campaign.currentAmount
     const updated = await campaign.save();
     return updated;
 }
