@@ -58,7 +58,10 @@ const reliefPointSchema = new Schema(
 
     // Rescue
     rescueStatus: { type: Boolean, default: false },
-    rescueList: [rescueEntrySchema]
+    rescueList: [rescueEntrySchema],
+    proff: {
+      type: String,
+    }
   },
   { timestamps: true }
 );

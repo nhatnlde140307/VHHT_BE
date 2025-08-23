@@ -8,7 +8,7 @@ import { transporter } from '../utils/nodemailerConfig.js';
 config()
 
 class AiService {
-    async generateCampaignContent({ title, description, location, startDate, endDate, tone, type }) {
+    async generateCampaignContent({ title, description, location, startDate, endDate, tone, type, id}) {
         const prompt = `
 Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho chiến dịch tình nguyện ở Hà Tĩnh sau:
 - Tên chiến dịch: ${title}
@@ -16,6 +16,7 @@ Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, gi�
 - Địa điểm: ${location}
 - Thời gian: từ ${startDate} đến ${endDate}
 Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham gia.
+thêm link website của chiến dịch ở dưới content bài viết, ${"https://volunteer-hub-fe.vercel.app/campaigns/" + id}
         `
         try {
             const response = await axios.post(
@@ -44,13 +45,15 @@ Nội dung cần truyền tải cảm xúc, kêu gọi cộng đồng cùng tham
         }
     }
 
-    async generateFundraisingContent({ title, goal, description, location, startDate, endDate, tone }) {
+    async generateFundraisingContent({ title, goal, description, location, startDate, endDate, tone,id }) {
         const prompt = `
 Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho một chiến dịch ở Hà Tĩnh kêu gọi quyên góp.
 - Tên chiến dịch: ${title}
 - Mục tiêu kêu gọi: ${goal}
 - Mô tả chiến dịch: ${description}
 Bài viết cần lay động lòng người, thể hiện sự cấp thiết và khơi gợi sự sẻ chia. Kết bài nên có lời kêu gọi mạnh mẽ để mọi người cùng chung tay đóng góp.
+thêm link website của chiến dịch ở dưới content bài viết, ${"https://volunteer-hub-fe.vercel.app/donations/" + id}
+
 `;
 
         try {

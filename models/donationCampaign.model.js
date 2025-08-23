@@ -58,7 +58,8 @@ const donationCampaignSchema = new mongoose.Schema({
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-    }
+    },
+    totalEnd: {type : Number}
 
 }, { timestamps: true });
 
