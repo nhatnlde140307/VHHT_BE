@@ -3,7 +3,7 @@ export const badWords = [
   // Từ tục trực tiếp & phổ biến
   'cặc', 'lồn', 'địt', 'đụ', 'bú', 'nứng', 'chim', 'buồi', 'cu', 'hòn dái',
   'loz', 'clmm', 'vkl', 'vcl', 'đmm', 'dm', 'dmm', 'cc', 'dcm', 'dkm',
-  'djt', 'clm', 'đệch', 'đéo', 'mẹ kiếp', 'vãi lồn',
+  'djt', 'clm', 'đệch', 'đéo', 'mẹ kiếp', 'vãi lồn', 'xàm',
 
   // Không dấu
   'cac', 'lon', 'dit', 'du', 'bu', 'nung', 'buoi', 'hon dai', 'deo', 'me kiep',

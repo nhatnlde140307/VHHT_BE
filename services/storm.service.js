@@ -1,5 +1,11 @@
 import Storm from '../models/storm.model.js';
 import mongoose from 'mongoose';
+import { config } from 'dotenv'
+import AiService from './ai.servive.js'
+import axios from 'axios';
+import newsPostServices from './newsPost.services.js';
+
+config()
 
 export const createStorm = async (data) => {
   if (data.isActive) {
@@ -15,8 +21,42 @@ export const activateStorm = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid storm ID");
   }
+  const img = process.env.WARNING_URL || 'https://media-cdn-v2.laodong.vn/Storage/NewsPortal/2017/9/14/564479/21728846_10154910938-01.jpg'
+  const storm = await Storm.findById(id);
+  if (!storm) throw new Error("Storm not found");
+  try {
+    const content = await AiService.generateWarningContent({
+      name: storm.name,
+      description: storm.description,
+      instruction: storm.instruction,
+      startDate: storm.startDate
+        ? storm.startDate.toLocaleDateString()
+        : "Chưa xác định",
+      endDate: storm.endDate
+        ? storm.endDate.toLocaleDateString()
+        : "Chưa xác định",
+    });
+    console.log(content);
+    const data = {
+      title: storm.name,
+      type: 'news',
+      content: content,
+      images: img
+    }
 
-  // Hủy các bão đang active khác nếu cần
+    await newsPostServices.createNewPost(data)
+
+    await axios.post(
+      "https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/",
+      {
+        title: Storm.name,
+        content,
+        image: img,
+      }
+    );
+  } catch (zapErr) {
+    console.error("❌ Zapier or AI failed:", zapErr.message);
+  }
   await Storm.updateMany({ isActive: true }, { isActive: false });
 
   return Storm.findByIdAndUpdate(id, { isActive: true, status: 'active' }, { new: true });
