@@ -3,10 +3,12 @@ import http from "http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { config } from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import databaseServices from "./services/database.services.js";
 import { defaultErrorHandler } from "./middlewares/errors.middlewares.js";
 
-// cron
+// cron jobs
 import "./cronJobs/phaseDayScheduler.js";
 import "./cronJobs/weatherAlertCron.js";
 
@@ -41,6 +43,7 @@ const port = process.env.PORT || 4000;
 
 app.enable("trust proxy");
 
+// ================== CORS ==================
 const allowRegexes = [
   /^https?:\/\/localhost:\d+$/,
   /^https:\/\/.+\.vercel\.app$/
@@ -67,21 +70,16 @@ app.use((_, res, next) => {
   res.setHeader("Vary", "Origin");
   next();
 });
+app.options(/.*/, cors({ origin: corsOrigin, credentials: true }));
 
-app.options(/.*/, cors({ origin: corsOrigin, credentials: true }))
-
+// ================== Middleware ==================
 databaseServices.connect();
-
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
 initSocket(server);
 
-app.get("/", (req, res) => {
-  res.status(200).json("Hello to VHHT API");
-});
-
+// ================== API Routes ==================
 function safeMount(path, router) {
   try {
     console.log("[MOUNT] ->", path);
@@ -111,10 +109,42 @@ safeMount("/issue", issueRouter);
 safeMount("/forum", forumRoutes);
 safeMount("/task", taskRouter);
 safeMount("/expense", Erouter);
-safeMount("/tempCert", tempCertrouter)
+safeMount("/tempCert", tempCertrouter);
 
+app.get("/", (req, res) => {
+  res.status(200).json("Hello to VHHT API 🚀");
+});
+
+// ================== Serve Frontend (PWA) ==================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const distPath = path.resolve(__dirname, "../VolunteerHub_FE/dist");
+
+// Serve static FE build
+app.use(express.static(distPath));
+
+// Service Worker phải từ root
+app.get("/sw.js", (req, res) => {
+  res.sendFile(path.join(distPath, "sw.js"));
+});
+
+// Manifest cần đúng Content-Type
+app.get("/manifest.webmanifest", (req, res) => {
+  res.type("application/manifest+json");
+  res.sendFile(path.join(distPath, "manifest.webmanifest"));
+});
+
+// React Router fallback (bắt mọi route không khớp API)
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
+
+// ================== Error Handler ==================
 app.use(defaultErrorHandler);
 
+// ================== Start Server ==================
 server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`🔥 Server is running on port ${port}`);
 });

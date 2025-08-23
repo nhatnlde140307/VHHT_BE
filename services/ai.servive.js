@@ -45,6 +45,44 @@ thêm link website của chiến dịch ở dưới content bài viết, ${"http
         }
     }
 
+     async generateWarningContent({ name, description, img, startDate, endDate, instruction}) {
+        const prompt = `
+Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn cảnh báo, cho cảnh báo mọi người về bão ở Hà Tĩnh như sau:
+- Tên cơn bão: ${name}
+- Mô tả : ${description}
+- Dự kiến bão đến: ${startDate}
+- Dự kiến bão tan: ${endDate}
+- Hướng dẫn người dân ${instruction}
+Nội dung cần cảnh báo người dân làm theo hướng dẫn, theo dõi các điểm cứu trợ ở website VHHT.
+thêm link website của VHHT, ${"https://volunteer-hub-fe.vercel.app"}
+        `
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-4o',
+                    messages: [
+                        { role: 'system', content: 'Bạn là một chuyên gia viết nội dung thiện nguyện chuyên nghiệp.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    max_tokens: 300,
+                    temperature: 0.9
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.GPT_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            )
+
+            return response.data.choices[0]?.message?.content?.trim() || AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
+        } catch (error) {
+            console.error('AI Error:', error?.response?.data || error.message)
+            return AI_EXENTD_MESSAGE.ERROR_IN_CONTENT
+        }
+    }
+
     async generateFundraisingContent({ title, goal, description, location, startDate, endDate, tone,id }) {
         const prompt = `
 Viết một bài đăng Facebook ngắn (~100 từ), bằng tiếng Việt, giọng văn ${tone}, cho một chiến dịch ở Hà Tĩnh kêu gọi quyên góp.
