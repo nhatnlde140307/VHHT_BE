@@ -21,7 +21,7 @@ export const activateStorm = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid storm ID");
   }
-  const img = process.env.WARNING_URL || 'https://media-cdn-v2.laodong.vn/Storage/NewsPortal/2017/9/14/564479/21728846_10154910938-01.jpg'
+  const img = process.env.WARNING_URL || 'https://res.cloudinary.com/dw2tbex85/image/upload/v1756073402/Facebook_Image_5_bkenaw.png'
   const storm = await Storm.findById(id);
   if (!storm) throw new Error("Storm not found");
   try {
