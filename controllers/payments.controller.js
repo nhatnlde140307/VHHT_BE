@@ -13,6 +13,9 @@ import usersServices from '../services/users.services.js';
 import DonorProfile from '../models/donorProfile.model.js'
 import Notification from '../models/notification.model.js';
 import { log } from 'console';
+import payOS from '../utils/payOs.js';
+
+
 config()
 
 export const createOrderPaymentZaloPayController = async (req, res) => {
@@ -179,7 +182,7 @@ export const callbackZalopay = async (req, res) => {
       ) {
         const content = await aiServive.generatePushRaisingDonation({
           title: refreshedCampaign.title,
-          goal: refreshedCampaign.goalAmount ,
+          goal: refreshedCampaign.goalAmount,
           currentAmount: refreshedCampaign.currentAmount,
           description: refreshedCampaign.description,
           tone: "gây xúc động",
@@ -256,5 +259,146 @@ const updateDonorProfile = async (userId, campaign, amount, transactionCode, tim
     });
   } catch (err) {
     console.error("❌ Lỗi khi cập nhật DonorProfile hoặc gửi email:", err.message);
+  }
+};
+
+const truncateDescription = (desc) => {
+  if (!desc) return "Thanh toán";
+  return desc.length > 25 ? desc.slice(0, 25) : desc;
+};
+
+export const createPaymentPayOS = async (req, res) => {
+  try {
+    const { donationCampaignId, guestName, amount, message, anonymous, buyerEmail, buyerPhone } = req.body;
+
+    let donorName = "Ẩn danh";
+    let userId = null;
+
+    if (req.decoded_authorization) {
+      userId = req.decoded_authorization.user_id;
+      const user = await User.findById(userId);
+      donorName = anonymous ? "Nhà hảo tâm ẩn danh" : user.fullName;
+    } else {
+      donorName = anonymous || !guestName ? "Nhà hảo tâm ẩn danh" : guestName.trim();
+    }
+
+    if (!amount || amount < 1000) {
+      return res.status(400).json({ error: "Số tiền không hợp lệ" });
+    }
+
+    const orderCode = Number(String(new Date().getTime()).slice(-6));
+
+    const body = {
+      orderCode,
+      amount,
+      description: truncateDescription(`Ủng hộ chiến dịch #${donationCampaignId || "Chung"}`),
+      returnUrl: `${process.env.FRONTEND_URL}/thankyou`,
+      cancelUrl: `${process.env.FRONTEND_URL}/cancel`,
+      buyerName: donorName,
+      buyerEmail: buyerEmail || "guest@example.com",
+      buyerPhone: buyerPhone || "0000000000",
+      items: [{ name: "Ủng hộ chiến dịch", quantity: 1, price: amount }],
+    };
+
+    const paymentLinkRes = await payOS.createPaymentLink(body);
+
+    // ✅ Lưu vào DB
+    await DonationTransaction.create({
+      donationCampaignId: donationCampaignId || null,
+      userId: userId || null,
+      donorName,
+      anonymous,
+      amount,
+      message,
+      paymentMethod: "PayOS",
+      paymentStatus: "pending",
+      transactionCode: orderCode
+    });
+
+    return res.json({
+      error: 0,
+      message: "Success",
+      data: {
+        bin: paymentLinkRes.bin,
+        checkoutUrl: paymentLinkRes.checkoutUrl,
+        accountNumber: paymentLinkRes.accountNumber,
+        accountName: paymentLinkRes.accountName,
+        amount: paymentLinkRes.amount,
+        description: paymentLinkRes.description,
+        orderCode: paymentLinkRes.orderCode,
+        qrCode: paymentLinkRes.qrCode,
+      },
+    });
+  } catch (error) {
+    console.error("❌ PayOS Error:", error.message);
+    return res.json({
+      error: -1,
+      message: "fail",
+      data: null,
+    });
+  }
+};
+
+export const handleWebhook = async (req, res) => {
+  try {
+    const verified = payOS.verifyPaymentWebhookData(req.body);
+    if (!verified.success) {
+      return res.status(400).json({ error: "Webhook không hợp lệ" });
+    }
+
+    const { orderCode, amount, description } = verified;
+    const io = getIO();
+
+    // ✅ Update transaction
+    const updatedTransaction = await DonationTransaction.findOneAndUpdate(
+      { transactionCode: orderCode },
+      { paymentStatus: "success" },
+      { new: true }
+    );
+
+    if (!updatedTransaction) {
+      return res.json({ error: 1, message: "Không tìm thấy transaction" });
+    }
+
+    // ✅ Update campaign
+    const campaign = await DonationCampaign.findByIdAndUpdate(
+      updatedTransaction.donationCampaignId,
+      { $inc: { currentAmount: amount } },
+      { new: true }
+    );
+
+    if (!campaign) throw new Error("Không tìm thấy chiến dịch");
+
+    // 🔄 Emit socket
+    const room = `donate-campaign-${campaign._id}`;
+    io.to(room).emit("new_donation", {
+      transaction: updatedTransaction,
+      currentAmount: campaign.currentAmount,
+      campaignId: campaign._id,
+    });
+
+    // 📩 Notification
+    const notifyDonation = await Notification.create({
+      recipient: campaign.createdBy,
+      title: `Có người vừa ủng hộ chiến dịch ${campaign.title}!`,
+      content: `${updatedTransaction.donorName} vừa ủng hộ ${(+amount).toLocaleString()} VNĐ`,
+      link: ``,
+      type: "donation",
+    });
+    io.to(notifyDonation.recipient.toString()).emit("notification", notifyDonation);
+
+    // 🧠 Update donor profile
+    await updateDonorProfile(
+      updatedTransaction.userId,
+      campaign,
+      amount,
+      orderCode,
+      Date.now()
+    );
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Webhook PayOS Error:", error.message);
+    res.status(400).json({ error: error.message });
   }
 };
