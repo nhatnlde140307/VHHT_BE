@@ -37,7 +37,7 @@ const donationTransactionSchema = new mongoose.Schema({
 
   paymentMethod: {
     type: String,
-    enum: ['Momo', 'ZaloPay', 'Cash'],
+    enum: ['Momo', 'ZaloPay','PayOS', 'Cash'],
     required: true,
     default : 'ZaloPay'
   },
