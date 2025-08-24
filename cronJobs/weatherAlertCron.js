@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
 dotenv.config();
 
 const API_KEY = process.env.API_KEY_WEATHER;
-const DEV_FORCE_STORM = process.env.DEV_FORCE_STORM === 'true';
+const DEV_FORCE_STORM = process.env.DEV_FORCE_STORM;
 const HATINH_QUERY = 'Ha Tinh';
 
 function getWindLevel(kph) {
@@ -82,7 +82,7 @@ cron.schedule('*/30 * * * * *', async () => {
       })),
       timestamp: new Date().toISOString(),
     };
-
+    console.log(weatherSummary)
     getIO().emit('weather:update', weatherSummary);
 
   } catch (err) {
