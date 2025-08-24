@@ -7,7 +7,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import databaseServices from "./services/database.services.js";
 import { defaultErrorHandler } from "./middlewares/errors.middlewares.js";
-
 // cron jobs
 import "./cronJobs/phaseDayScheduler.js";
 import "./cronJobs/weatherAlertCron.js";
@@ -33,6 +32,7 @@ import forumRoutes from "./routes/forum.routes.js";
 import taskRouter from "./routes/task.routes.js";
 import Erouter from "./routes/donationExpense.routes.js";
 import tempCertrouter from "./routes/templateCert.routes.js";
+import r from "./routes/push.router.js";
 import { initSocket } from "./socket/socket.js";
 
 config();
@@ -110,6 +110,7 @@ safeMount("/forum", forumRoutes);
 safeMount("/task", taskRouter);
 safeMount("/expense", Erouter);
 safeMount("/tempCert", tempCertrouter);
+app.use("/push", r);
 
 app.get("/", (req, res) => {
   res.status(200).json("Hello to VHHT API 🚀");
