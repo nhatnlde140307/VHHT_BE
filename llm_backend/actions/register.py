@@ -1,21 +1,24 @@
+import os
 import requests
 import logging
 from bson import ObjectId
 from utils import extract_campaign_name
 from database import campaign_collection
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:4000")
 
 def register_campaign_from_input(user_input: str, token: str = None):
     if not token:
         return "Anh/chị cần đăng nhập trước khi đăng ký chiến dịch nha 🫣!"
 
-    # 🎯 Trích tên chiến dịch từ câu nói
     name = extract_campaign_name(user_input)
     if not name:
         return "Em chưa nhận ra tên chiến dịch nào trong câu nói 😵 Anh/chị nói rõ hơn nha!"
 
-    # 🔍 Tìm campaign trong MongoDB
     campaign = campaign_collection.find_one({
         "name": {"$regex": f"^{name}$", "$options": "i"},
         "acceptStatus": "approved"
@@ -24,7 +27,7 @@ def register_campaign_from_input(user_input: str, token: str = None):
         return f"Em không tìm thấy chiến dịch tên **{name}** đã được duyệt á 😢"
 
     campaign_id = str(campaign["_id"])
-    url = f"http://localhost:4000/campaigns/{campaign_id}/register"
+    url = f"{BACKEND_URL}/campaigns/{campaign_id}/register"
 
     try:
         response = requests.post(
