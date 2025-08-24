@@ -13,13 +13,14 @@
   "description": "",
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
-    "axios": "^1.10.0",
+    "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
+    "csv-parse": "^6.1.0",
     "dayjs": "^1.11.13",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
@@ -45,7 +46,8 @@
     "pdfkit": "^0.17.1",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.0",
