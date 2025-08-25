@@ -20,17 +20,16 @@ function kmhToBeaufort(kmh) {
   return 12;
 }
 
-async function fetchStormData() {
+// ---- GLOBAL STATE ----
+let latestAlerts = [];
+const DEV_MODE = process.env.DEV_MODE === "true";
+
+// ---- 1. Fetch AccuWeather ----
+async function fetchAccuWeather() {
   try {
     const ACCU_API_KEY = process.env.ACCU_API_KEY;
     const ACCU_LOCATION = process.env.ACCU_LOCATION;
-    const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 
-    // dùng lat/lng cho WeatherAPI
-    const LAT = 18.3429;
-    const LNG = 105.9057;
-
-    // ----- 1. AccuWeather forecast -----
     const accuUrl = `https://dataservice.accuweather.com/forecasts/v1/daily/5day/${ACCU_LOCATION}?apikey=${ACCU_API_KEY}&metric=true&details=true&language=vi-vn`;
     const resAccu = await fetch(accuUrl);
     const dataAccu = await resAccu.json();
@@ -94,54 +93,79 @@ async function fetchStormData() {
       }
     }
 
-    // ----- 2. WeatherAPI current weather -----
-    let weather = {
-      temp_c: null,
-      feelslike_c: null,
-      wind_kph: null,
-      windLevel: null,
-      humidity: null,
-      pressure_mb: null,
-      uv: null
-    };
-
-    try {
-      const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=18.3429,105.9057&lang=vi`;
-      const resWeather = await fetch(weatherUrl);
-      if (!resWeather.ok) throw new Error(`HTTP ${resWeather.status}`);
-      const dataWeather = await resWeather.json();
-
-      if (dataWeather.current) {
-        const cur = dataWeather.current;
-        weather = {
-          temp_c: cur.temp_c,
-          feelslike_c: cur.feelslike_c,
-          wind_kph: cur.wind_kph,
-          windLevel: `Beaufort ${kmhToBeaufort(cur.wind_kph)}`,
-          humidity: cur.humidity,
-          pressure_mb: cur.pressure_mb,
-          uv: cur.uv
-        };
-      } else {
-        console.warn('⚠️ WeatherAPI không có dữ liệu current:', dataWeather);
-      }
-    } catch (err) {
-      console.error('❌ Lỗi khi fetch WeatherAPI:', err);
-    }
-
-    // ----- 3. Gửi payload về FE -----
-    const payload = { alerts, weather };
-    getIO().emit('weather:update', payload);
-    console.log('⚡ Weather broadcasted:', payload);
+    latestAlerts = alerts; // ✅ Cập nhật global alerts
+    console.log("✅ Cập nhật latestAlerts từ AccuWeather:", latestAlerts);
 
   } catch (err) {
     console.error('❌ Lỗi khi fetch dữ liệu AccuWeather:', err);
   }
 }
 
-// Cron mỗi 30 giây
-// cron.schedule('*/30 * * * * *', fetchStormData);
-// cron.schedule('0 */30 * * * *', fetchStormData);
-cron.schedule('0 0 */3 * * *', fetchStormData);
+// ---- 2. Fetch WeatherAPI ----
+async function fetchWeatherAPI() {
+  const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 
+  let weather = {
+    temp_c: null,
+    feelslike_c: null,
+    wind_kph: null,
+    windLevel: null,
+    humidity: null,
+    pressure_mb: null,
+    uv: null
+  };
 
+  try {
+    const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=18.3429,105.9057&lang=vi`;
+    const resWeather = await fetch(weatherUrl);
+    if (!resWeather.ok) throw new Error(`HTTP ${resWeather.status}`);
+    const dataWeather = await resWeather.json();
+
+    if (dataWeather.current) {
+      const cur = dataWeather.current;
+      weather = {
+        temp_c: cur.temp_c,
+        feelslike_c: cur.feelslike_c,
+        wind_kph: cur.wind_kph,
+        windLevel: `Beaufort ${kmhToBeaufort(cur.wind_kph)}`,
+        humidity: cur.humidity,
+        pressure_mb: cur.pressure_mb,
+        uv: cur.uv
+      };
+    } else {
+      console.warn('⚠️ WeatherAPI không có dữ liệu current:', dataWeather);
+    }
+  } catch (err) {
+    console.error('❌ Lỗi khi fetch WeatherAPI:', err);
+  }
+
+  // ✅ Quyết định alerts (AccuWeather hay giả lập)
+  let alertsToSend = latestAlerts;
+  if ((!alertsToSend || alertsToSend.length === 0) && DEV_MODE) {
+    alertsToSend = [{
+      headline: 'Bão nhiệt đới sẽ ảnh hưởng đến khu vực vào Chủ Nhật',
+      desc: '🌧️ Mưa TB: 105.6 mm/ngày (max 115.6 mm)\n' +
+            '💨 Gió giật TB: 107.4 km/h (max 127.4 km/h)\n' +
+            '🌀 Cấp gió Beaufort: 12',
+      instruction: 'Bão mạnh, ở yên trong nhà, tuyệt đối tránh ra ngoài!',
+      effective: '2025-08-31T07:00:00+07:00',
+      expires: '2025-09-02T19:00:00+07:00',
+      areas: 'Hà Tĩnh'
+    }];
+  }
+
+  // ---- Emit về FE ----
+  const payload = { alerts: alertsToSend, weather };
+  getIO().emit('weather:update', payload);
+  console.log('⚡ Weather broadcasted:', payload);
+}
+
+// ---- Cron ----
+// AccuWeather: mỗi 3 tiếng
+cron.schedule('0 0 */3 * * *', fetchAccuWeather);
+
+// WeatherAPI: mỗi 30 giây
+cron.schedule('*/30 * * * * *', fetchWeatherAPI);
+
+// ✅ Gọi 1 lần ngay khi server start
+fetchWeatherAPI();
