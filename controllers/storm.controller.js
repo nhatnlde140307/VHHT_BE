@@ -35,6 +35,15 @@ export const deactivateStorm = async (req, res) => {
   }
 };
 
+export const deactivateStormRL = async (req, res) => {
+  try {
+    const storm = await StormService.deactivateStormRL(req.params.id);
+    res.json(storm);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 export const getActiveStorm = async (req, res) => {
   try {
     const storm = await StormService.getActiveStorm();

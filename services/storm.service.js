@@ -67,7 +67,15 @@ export const deactivateStorm = async (id) => {
     throw new Error("Invalid storm ID");
   }
 
-  return Storm.findByIdAndUpdate(id, { isActive: false, status: 'ended' }, { new: true });
+  return Storm.findByIdAndUpdate(id, { isActive: false}, { new: true });
+};
+
+export const deactivateStormRL = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid storm ID");
+  }
+
+  return Storm.findByIdAndUpdate(id, { status: 'ended' }, { new: true });
 };
 
 export const getActiveStorm = () => {
