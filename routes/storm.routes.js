@@ -8,5 +8,6 @@ stormRouter.get('/', StormController.getAllStorms);
 stormRouter.get('/active', StormController.getActiveStorm);
 stormRouter.patch('/:id/activate', StormController.activateStorm);
 stormRouter.patch('/:id/deactivate', StormController.deactivateStorm);
+stormRouter.patch('/:id/deactivatestorm', StormController.deactivateStormRL);
 
 export default stormRouter;
