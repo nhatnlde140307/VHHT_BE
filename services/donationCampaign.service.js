@@ -17,7 +17,8 @@ class DonationServices {
             description,
             goalAmount,
             tags = [],
-            createdBy
+            createdBy, endDate,
+
         } = data;
 
         if (!title || !description || !goalAmount) {
@@ -32,7 +33,8 @@ class DonationServices {
             images: images,
             tags,
             createdBy: userId,
-            currentAmount: 0
+            currentAmount: 0,
+            endDate: endDate ? new Date(endDate) : undefined
         });
 
         return await newCampaign.save();
@@ -58,7 +60,8 @@ class DonationServices {
                 'thumbnail',
                 'images',
                 'tags',
-                'status'
+                'status',
+                'endDate'
             ]
 
             fields.forEach(field => {
@@ -66,6 +69,11 @@ class DonationServices {
                     campaign[field] = payload[field]
                 }
             })
+
+            if (payload.endDate !== undefined) {
+                campaign.endDate = payload.endDate ? new Date(payload.endDate) : undefined;
+            }
+
 
             if (thumbnail) {
                 campaign.thumbnail = thumbnail;
@@ -122,8 +130,8 @@ class DonationServices {
                     goal: updated.goalAmount ? `${updated.goalAmount} VNĐ` : 'Không rõ',
                     description: updated.description,
                     tone: "gây xúc động",
-                    type:"kêu gọi ủng hộ thiện nguyện",
-                    id:id
+                    type: "kêu gọi ủng hộ thiện nguyện",
+                    id: id
                 });
 
                 await axios.post("https://hooks.zapier.com/hooks/catch/23147694/2v3x9r1/", {
@@ -235,24 +243,24 @@ class DonationServices {
         };
     }
     async completeCampaign(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error('ID chiến dịch không hợp lệ');
-    }
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error('ID chiến dịch không hợp lệ');
+        }
 
-    const campaign = await DonationCampaign.findById(id);
-    if (!campaign) {
-        throw new Error('Không tìm thấy chiến dịch');
-    }
+        const campaign = await DonationCampaign.findById(id);
+        if (!campaign) {
+            throw new Error('Không tìm thấy chiến dịch');
+        }
 
-    if (campaign.status === 'completed') {
-        throw new Error('Chiến dịch đã kết thúc trước đó');
-    }
+        if (campaign.status === 'completed') {
+            throw new Error('Chiến dịch đã kết thúc trước đó');
+        }
 
-    campaign.status = 'completed';
-    campaign.totalEnd = campaign.currentAmount
-    const updated = await campaign.save();
-    return updated;
-}
+        campaign.status = 'completed';
+        campaign.totalEnd = campaign.currentAmount
+        const updated = await campaign.save();
+        return updated;
+    }
 }
 
 export default new DonationServices();
