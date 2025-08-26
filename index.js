@@ -10,6 +10,7 @@ import { defaultErrorHandler } from "./middlewares/errors.middlewares.js";
 // cron jobs
 import "./cronJobs/phaseDayScheduler.js";
 import "./cronJobs/weatherAlertCron.js";
+import "./cronJobs/endDayCron.js"
 
 // routes
 import usersRouter from "./routes/users.routes.js";

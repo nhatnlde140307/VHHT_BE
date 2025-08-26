@@ -157,7 +157,7 @@ async function fetchWeatherAPI() {
   // ---- Emit về FE ----
   const payload = { alerts: alertsToSend, weather };
   getIO().emit('weather:update', payload);
-  console.log('⚡ Weather broadcasted:', payload);
+  //console.log('⚡ Weather broadcasted:', payload);
 }
 
 // ---- Cron ----
