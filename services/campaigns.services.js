@@ -329,6 +329,24 @@ class CampaignServices {
         gallery,
       });
 
+      const managers = await User.find({ role: "manager" });
+
+      const notifications = managers.map(m => ({
+        title: "Có chiến dịch mới cần chờ duyệt",
+        content: `Có chiến dịch "${campaign.name}" mới được gửi lên chờ duyệt.`,
+        link: `/manager/campaigns`,
+        type: "campaign_approved",
+        recipient: m._id,
+      }));
+
+      // Lưu nhiều thông báo 1 lần
+      const savedNotifications = await Notification.insertMany(notifications);
+
+      // Gửi socket cho từng manager
+      savedNotifications.forEach(n => {
+        sendNotificationToUser(n.recipient, n);
+      });
+
       await campaign.save();
       return campaign;
     } catch (err) {
@@ -500,6 +518,19 @@ class CampaignServices {
     }
 
     campaign.acceptStatus = "approved";
+
+    const newNotification = new Notification({
+      title: "Chiến dịch của bạn đã được duyệt",
+      content: `Chiến dịch "${campaign.name}" đã được quản lý duyệt.`,
+      link: `/staff/campaigns/${campaign._id}`,
+      type: "campaign_approved",
+      recipient: campaign.createdBy,
+    });
+
+    await newNotification.save();
+
+    sendNotificationToUser(campaign.createdBy, newNotification);
+
     campaign.approvedAt = new Date();
 
     await campaign.save();
@@ -610,9 +641,8 @@ class CampaignServices {
       const emailContent = {
         body: {
           name: user.fullName || user.email,
-          intro: `Bạn đã được duyệt tham gia chiến dịch "${
-            campaign.name
-          }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
+          intro: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+            }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`,
           outro:
             "Nếu bạn không đăng ký chiến dịch này, vui lòng bỏ qua email này.",
         },
@@ -631,9 +661,8 @@ class CampaignServices {
     // Tạo và lưu notification vào DB, rồi gửi socket
     const newNotification = new Notification({
       title: "Đăng ký chiến dịch được duyệt", // Title ngắn gọn
-      content: `Bạn đã được duyệt tham gia chiến dịch "${
-        campaign.name
-      }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
+      content: `Bạn đã được duyệt tham gia chiến dịch "${campaign.name
+        }" bắt đầu từ ngày ${campaign.startDate.toLocaleDateString()}.`, // Content chi tiết
       link: `/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
       type: "campaign_approved",
       recipient: userId,
@@ -825,10 +854,10 @@ class CampaignServices {
             v.evaluation === "excellent"
               ? `Bạn được đánh giá xuất sắc...`
               : v.evaluation === "good"
-              ? `Bạn đã hoàn thành rất tốt...`
-              : v.evaluation === "average"
-              ? `Bạn đã hoàn thành ở mức khá...`
-              : `Cảm ơn bạn đã tham gia...`;
+                ? `Bạn đã hoàn thành rất tốt...`
+                : v.evaluation === "average"
+                  ? `Bạn đã hoàn thành ở mức khá...`
+                  : `Cảm ơn bạn đã tham gia...`;
 
           if (fileUrl) {
             action = {
