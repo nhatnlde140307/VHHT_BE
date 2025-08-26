@@ -32,6 +32,7 @@ import forumRoutes from "./routes/forum.routes.js";
 import taskRouter from "./routes/task.routes.js";
 import Erouter from "./routes/donationExpense.routes.js";
 import tempCertrouter from "./routes/templateCert.routes.js";
+import dashboardrouter from "./routes/dashboard.routes.js";
 import r from "./routes/push.router.js";
 import { initSocket } from "./socket/socket.js";
 
@@ -110,6 +111,7 @@ safeMount("/forum", forumRoutes);
 safeMount("/task", taskRouter);
 safeMount("/expense", Erouter);
 safeMount("/tempCert", tempCertrouter);
+safeMount("/dashboard", dashboardrouter);
 app.use("/push", r);
 
 app.get("/", (req, res) => {
