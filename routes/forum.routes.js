@@ -66,11 +66,7 @@ forumRoutes.delete(
  * Forum post list
  */
 // Get newest forum posts (order by crated time desc)
-forumRoutes.get(
-  "/news",
-  accessTokenValidator,
-  wrapRequestHandler(getNewForumPosts)
-);
+forumRoutes.get("/news", wrapRequestHandler(getNewForumPosts));
 // Get relative forum posts (order by crated time desc)
 forumRoutes.get(
   "/relatives",
