@@ -53,7 +53,7 @@ phaseRouter.put(
 
 //end phase
 phaseRouter.put(
-  "/:phaseId/start",
+  "/:phaseId/end",
   organizationAndManagerValidator,
   wrapRequestHandler(endPhase)
 );
