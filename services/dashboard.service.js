@@ -6,7 +6,7 @@ import PhaseDay from "../models/phaseDay.model.js";
 import Checkin from "../models/checkin.model.js";
 import Task from "../models/task.model.js";
 import User from "../models/users.model.js"
-
+import DonationCampaign from "../models/donationCampaign.model.js"
 const toObjectId = (id) => new mongoose.Types.ObjectId(id);
 
 const timeMatch = (from, to) => {
@@ -226,3 +226,29 @@ export async function buildDashboard({ campaignId, from, to, sections }) {
 
   return results.reduce((acc, cur) => Object.assign(acc, cur), {});
 }
+
+export async function getOverviewStats() {
+  const [totalCampaigns, totalUsers] = await Promise.all([
+    Campaign.countDocuments(),
+    User.countDocuments()
+  ])
+
+  // Tổng tiền donate theo rule: totalEnd ?? currentAmount
+  const [agg] = await DonationCampaign.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalDonationAmount: {
+          $sum: { $ifNull: ['$totalEnd', '$currentAmount'] }
+        }
+      }
+    }
+  ])
+
+  return {
+    totalCampaigns,
+    totalUsers,
+    totalDonationAmount: agg?.totalDonationAmount ?? 0
+  }
+}
+
