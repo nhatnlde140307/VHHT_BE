@@ -1,4 +1,4 @@
-import { buildDashboard } from "../services/dashboard.service.js";
+import { buildDashboard, getOverviewStats } from "../services/dashboard.service.js";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -18,3 +18,18 @@ export const getDashboard = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
+
+export const getstats = async (req, res) => {
+  try {
+
+    const result = await getOverviewStats();
+
+    return res.status(200).json({
+      result
+    })
+} catch (e) {
+  res.status(500).json({ error: e.message });
+}
+};
+
+
