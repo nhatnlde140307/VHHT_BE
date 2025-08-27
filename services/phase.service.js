@@ -247,6 +247,53 @@ export async function startPhaseService(phaseId) {
     return phase;
 }
 
+
+export async function endPhaseService(phaseId) {
+    const phase = await Phase.findById(phaseId).populate('campaignId');
+    if (!phase) {
+        throw new Error('phaseId không hợp lệ')
+    }
+
+    const campaign = phase.campaignId;
+
+    if (phase.status !== 'in-progress') {
+        throw new Error('Phase is not in in-progress status')
+    }
+
+    const currentDate = new Date();
+    // if (phase.startDate > currentDate) {
+    //     throw new ApiError(400, 'Phase start date has not arrived yet');
+    // }
+
+    phase.status = 'completed';
+    await phase.save();
+
+    // Tạo và gửi notification cho volunteers
+    const volunteers = campaign.volunteers.filter(v => v.status === 'approved');
+    for (const volunteer of volunteers) {
+        const recipientId = volunteer.user;
+
+        const newNotification = new Notification({
+            title: `Phase "${phase.name}" của chiến dịch "${campaign.name} đã kết thúc`,
+            content: `Phase ${phase.name} đã kết thúc .`,
+            link: `/campaigns/${campaign._id}`,
+            type: 'system',
+            recipient: recipientId,
+            isRead: false,
+        });
+
+        await newNotification.save();
+
+        // Gửi qua socket
+        try {
+            sendNotificationToUser(recipientId, newNotification);
+        } catch (socketError) {
+            console.error(`Failed to send socket noti to user ${recipientId}:`, socketError);
+        }
+    }
+    return phase;
+}
+
 export const phaseService = {
     createPhase,
     updatePhase,
@@ -255,5 +302,6 @@ export const phaseService = {
     updatePhaseDay,
     deletePhaseDay,
     getPhasesByCampaignId,
-    startPhaseService
+    startPhaseService,
+    endPhaseService
 }

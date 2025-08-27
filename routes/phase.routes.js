@@ -7,7 +7,7 @@ import {
   updatePhaseDay,
   deletePhaseDay,
   getPhasesByCampaignId,
-  startPhase,
+  startPhase,endPhase
 } from "../controllers/phase.controller.js";
 import {
   organizationAndManagerValidator,
@@ -50,6 +50,14 @@ phaseRouter.put(
   organizationAndManagerValidator,
   wrapRequestHandler(startPhase)
 );
+
+//end phase
+phaseRouter.put(
+  "/:phaseId/start",
+  organizationAndManagerValidator,
+  wrapRequestHandler(endPhase)
+);
+
 
 // Tạo phaseday
 phaseRouter.post(

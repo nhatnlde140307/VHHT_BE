@@ -134,3 +134,19 @@ export const startPhase = async (req, res, next) => {
     next(error); 
   }
 }
+
+
+export const endPhase = async (req, res, next) => {
+  try {
+    const { phaseId } = req.params;
+
+    const updatedPhase = await phaseService.endPhaseService(phaseId);
+
+    res.status(200).json({
+      message: 'Phase started successfully',
+      phase: updatedPhase,
+    });
+  } catch (error) {
+    next(error); 
+  }
+}
