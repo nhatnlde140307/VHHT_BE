@@ -1,9 +1,7 @@
-// file: stormCron.js
 import cron from 'node-cron';
 import fetch from 'node-fetch';
 import { getIO } from '../socket/socket.js';
 
-// Chuyển km/h -> cấp gió Beaufort 0-12
 function kmhToBeaufort(kmh) {
   if (kmh < 1) return 0;
   if (kmh <= 5) return 1;
@@ -20,11 +18,9 @@ function kmhToBeaufort(kmh) {
   return 12;
 }
 
-// ---- GLOBAL STATE ----
 let latestAlerts = [];
 const DEV_MODE = process.env.DEV_MODE === "true";
 
-// ---- 1. Fetch AccuWeather ----
 async function fetchAccuWeather() {
   try {
     const ACCU_API_KEY = process.env.ACCU_API_KEY;
@@ -93,7 +89,7 @@ async function fetchAccuWeather() {
       }
     }
 
-    latestAlerts = alerts; // ✅ Cập nhật global alerts
+    latestAlerts = alerts; 
     console.log("✅ Cập nhật latestAlerts từ AccuWeather:", latestAlerts);
 
   } catch (err) {
@@ -101,7 +97,6 @@ async function fetchAccuWeather() {
   }
 }
 
-// ---- 2. Fetch WeatherAPI ----
 async function fetchWeatherAPI() {
   const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 
@@ -139,7 +134,6 @@ async function fetchWeatherAPI() {
     console.error('❌ Lỗi khi fetch WeatherAPI:', err);
   }
 
-  // ✅ Quyết định alerts (AccuWeather hay giả lập)
   let alertsToSend = latestAlerts;
   if ((!alertsToSend || alertsToSend.length === 0) && DEV_MODE) {
     alertsToSend = [{
@@ -154,18 +148,15 @@ async function fetchWeatherAPI() {
     }];
   }
 
-  // ---- Emit về FE ----
   const payload = { alerts: alertsToSend, weather };
   getIO().emit('weather:update', payload);
   //console.log('⚡ Weather broadcasted:', payload);
 }
 
-// ---- Cron ----
 // AccuWeather: mỗi 3 tiếng
 cron.schedule('0 0 */3 * * *', fetchAccuWeather);
 
 // WeatherAPI: mỗi 30 giây
 cron.schedule('*/30 * * * * *', fetchWeatherAPI);
 
-// ✅ Gọi 1 lần ngay khi server start
 fetchWeatherAPI();
