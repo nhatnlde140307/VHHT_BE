@@ -580,6 +580,18 @@ class CampaignServices {
       campaign.volunteers.push({ user: userId });
       await campaign.save();
 
+      const newnoti = new Notification({
+        title: `Có đăng kí mới vào chiến dịch ${campaign.name} `, // Title ngắn gọn
+        content: `Tình nguyện viên mới muốn đăng kí vào chiến dịch.`, // Content chi tiết
+        link: `/staff/campaigns/${campaign._id}`, // Link ví dụ đến campaign detail page (adjust nếu frontend khác)
+        type: "campaign_approved",
+        recipient: campaign?.createdBy,
+      });
+
+      await newnoti.save()
+
+      sendNotificationToUser(campaign?.createdBy, newnoti)
+
       return { message: "Registration submitted, waiting for admin approval" };
     } catch (err) {
       throw new Error(`Failed to register: ${err.message}`);
