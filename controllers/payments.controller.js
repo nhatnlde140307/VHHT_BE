@@ -193,7 +193,7 @@ export const callbackZalopay = async (req, res) => {
           title: refreshedCampaign.title,
           content,
           image: refreshedCampaign.thumbnail,
-          link: `https://your-site.com/donation-campaigns/${updated._id}`,
+          link: `https://volunteer-hub-fe.vercel.app/campaigns`,
         });
       }
       result = {
