@@ -92,12 +92,19 @@ async function fetchAccuWeather() {
     latestAlerts = alerts; 
     console.log("✅ Cập nhật latestAlerts từ AccuWeather:", latestAlerts);
 
+    if (alerts.length > 0) {
+      const weather = await fetchWeatherAPI(true); 
+      const payload = { alerts, weather };
+      getIO().emit('weather:update', payload);
+      console.log("⚡ Đã broadcast cảnh báo AccuWeather ngay lập tức:", payload);
+    }
+
   } catch (err) {
     console.error('❌ Lỗi khi fetch dữ liệu AccuWeather:', err);
   }
 }
 
-async function fetchWeatherAPI() {
+async function fetchWeatherAPI(silent = false) {
   const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 
   let weather = {
@@ -149,14 +156,20 @@ async function fetchWeatherAPI() {
   }
 
   const payload = { alerts: alertsToSend, weather };
-  getIO().emit('weather:update', payload);
-  //console.log('⚡ Weather broadcasted:', payload);
+
+  if (!silent) {
+    getIO().emit('weather:update', payload);
+    //console.log('⚡ Weather broadcasted:', payload);
+  }
+
+  return weather;
 }
 
 // AccuWeather: mỗi 3 tiếng
-cron.schedule('0 0 */3 * * *', fetchAccuWeather);
+cron.schedule('*/30 * * * * *', fetchAccuWeather);
 
 // WeatherAPI: mỗi 30 giây
 cron.schedule('*/30 * * * * *', fetchWeatherAPI);
 
+// chạy ban đầu
 fetchWeatherAPI();
